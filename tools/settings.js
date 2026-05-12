@@ -13,10 +13,10 @@
                         <h3>🗑️ データ管理</h3>
                         <div class="button-group">
                             <button id="clearAllCache" class="btn-danger">全キャッシュを削除</button>
-                            <button id="clearCheckerCache" class="btn-warning">チェッカーデータのみ削除</button>
+                            <button id="clearCheckerCache" class="btn-warning">チェックデータのみ削除</button>
                         </div>
                         <p class="settings-note">
-                            ※ 削除すると復元できません。呪文でバックアップしておくことをおすすめします。
+                            ※ 削除すると復元できません。呪文書き出しでバックアップすることをおすすめします。
                         </p>
                     </div>
 
@@ -39,8 +39,8 @@
 
                     <div class="settings-card">
                         <h3>ℹ️ このツールについて</h3>
-                        <p>DQXツールセット - ユッフィー製作</p>
-                        <p>バージョン: 2.0.0</p>
+                        <p>DQXツールセット - 製作:yuffy_rre</p>
+                        <p>バージョン: 2.1.0</p>
                     </div>
                 </div>
             `;
@@ -197,7 +197,7 @@
                 const infoDiv = document.getElementById('storageInfo');
                 if (infoDiv) {
                     infoDiv.innerHTML = `
-                        <p>📊 DQX関連データ: ${count} 項目</p>
+                        <p>📊 内部データ: ${count} 項目</p>
                         <p>💾 概算サイズ: ${Math.round(total / 1024)} KB</p>
                     `;
                 }
@@ -207,7 +207,7 @@
             const clearBtn = document.getElementById('clearAllCache');
             if (clearBtn) {
                 clearBtn.onclick = () => {
-                    if (confirm('すべてのDQXツールデータを削除します。よろしいですか？')) {
+                    if (confirm('すべてのデータを削除します。よろしいですか？')) {
                         const keysToRemove = [];
                         for (let i = 0; i < localStorage.length; i++) {
                             const key = localStorage.key(i);
