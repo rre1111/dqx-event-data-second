@@ -242,7 +242,7 @@ body.dark-mode .tool-menu-bottom {
 /* ----- レスポンシブ調整 ----- */
 @media (max-width: 768px) {
     .tool-card {
-        padding: 12px 6px 8px 6px;  /* 上:12px 左右:6px 下:8px 左:6px */
+        padding: 6px 2px 4px 2px;  /* 上 右 下 左 */
     }
     
     .tool-card-desc {
