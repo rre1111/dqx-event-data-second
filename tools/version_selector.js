@@ -67,9 +67,7 @@
                 </div>
             `;
 
-            // スタイル
-            const style = document.createElement('style');
-                        // スタイル（ダークモード対応版）
+            // スタイル（ダークモード対応版）
             const style = document.createElement('style');
             style.textContent = `
                 .vs-container {
