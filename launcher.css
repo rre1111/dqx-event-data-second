@@ -145,7 +145,18 @@
 }
 
 .tool-menu-sidebar .tool-menu-btn {
-    width: 55px;
+    width: 86px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.tool-menu-sidebar .menu-btn-label {
+    font-size: 11px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 70px;
 }
 
 .tool-menu-bottom .tool-menu-btn {
