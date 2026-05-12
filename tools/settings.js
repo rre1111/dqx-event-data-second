@@ -98,6 +98,9 @@
                 body.dark-mode .settings-card h3 {
                     color: #e2e8f0;
                 }
+                body.dark-mode .settings-card p {
+                    color: #cbd5e1;
+                }
                 body.dark-mode .settings-note {
                     color: #94a3b8;
                 }
