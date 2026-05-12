@@ -199,6 +199,9 @@ const DQXTools = {
         if (oldContainer) oldContainer.remove();
 
         const toolContainer = document.createElement('div');
+        let toolContainer = document.getElementById('dqx-tool-container');
+    if (!toolContainer) {
+        toolContainer = document.createElement('div');
         toolContainer.id = 'dqx-tool-container';
         this.container.appendChild(toolContainer);
 
@@ -268,7 +271,6 @@ const DQXTools = {
                 this.container.innerHTML = '';
                 fn('#dqx-tool-container');
                 this.currentTool = toolId;
-                // 【改造】ツールメニューを表示（ホームボタンではなく全ツールボタン）
                 this.renderToolMenu();
             } else {
                 toolContainer.innerHTML = '<div style="color: red; text-align: center; padding: 40px;">エラー: ツールの読み込みに失敗しました</div>';
