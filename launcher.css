@@ -253,29 +253,38 @@ body.dark-mode .tool-menu-bottom {
     border-top-color: #1e293b;
 }
 
-/* ----- レスポンシブ調整（スマホ:3列＋カード余白完全削除） ----- */
+/* ----- レスポンシブ調整（スマホ:3列＋アイコン縮小） ----- */
 @media (max-width: 768px) {
     .home-grid {
         grid-template-columns: repeat(3, 1fr);
-        gap: 10px;
+        gap: 8px;
         margin-bottom: 20px;
     }
     
     .tool-card {
-        aspect-ratio: 1 / 0.9;
+        aspect-ratio: auto;
+        padding: 6px 2px;
         gap: 2px;
     }
     
     .tool-card-icon {
-        font-size: 28px;
+        font-size: 18px;
+        margin: 0;
+        line-height: 1;
     }
     
     .tool-card-name {
-        font-size: 11px;
+        font-size: 9px;
+        margin: 0;
+        line-height: 1.2;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 100%;
     }
     
     .tool-card-desc {
-        font-size: 9px;
+        display: none;
     }
     
     .home-title {
