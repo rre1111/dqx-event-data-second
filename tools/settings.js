@@ -29,13 +29,69 @@
                         <h3>ℹ️ このツールについて</h3>
                         <p>DQXツールセット - ユッフィー製作</p>
                         <p>バージョン: 2.0.0</p>
+                        <div class="link-buttons">
+                            <a href="https://github.com/yuffy-1111/dqx-event-data/issues" target="_blank" class="github-link">
+                                💻 GitHub Issues
+                            </a>
+                            <a href="https://x.com/yuffy_rre_dqx" target="_blank" class="x-link">
+                                𝕏 @yuffy_1111
+                            </a>
+                        </div>
                     </div>
-                </div>
             `;
 
             // スタイルを追加（ダークモード対応済み）
             const style = document.createElement('style');
             style.textContent = `
+                                .link-buttons {
+                    margin-top: 16px;
+                    padding-top: 12px;
+                    border-top: 1px solid #e0e0e0;
+                    display: flex;
+                    gap: 12px;
+                    justify-content: center;
+                    flex-wrap: wrap;
+                }
+                .github-link {
+                    display: inline-block;
+                    padding: 8px 16px;
+                    background: #24292f;
+                    color: white;
+                    text-decoration: none;
+                    border-radius: 24px;
+                    font-size: 13px;
+                }
+                .github-link:hover {
+                    background: #3b444f;
+                }
+                .x-link {
+                    display: inline-block;
+                    padding: 8px 16px;
+                    background: #000000;
+                    color: white;
+                    text-decoration: none;
+                    border-radius: 24px;
+                    font-size: 13px;
+                }
+                .x-link:hover {
+                    background: #333333;
+                }
+                /* ダークモード */
+                body.dark-mode .link-buttons {
+                    border-top-color: #334155;
+                }
+                body.dark-mode .github-link {
+                    background: #4b5563;
+                }
+                body.dark-mode .github-link:hover {
+                    background: #6b7280;
+                }
+                body.dark-mode .x-link {
+                    background: #1e293b;
+                }
+                body.dark-mode .x-link:hover {
+                    background: #334155;
+                }
                 .settings-container {
                     max-width: 600px;
                     margin: 0 auto;
