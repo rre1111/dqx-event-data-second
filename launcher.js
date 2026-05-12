@@ -146,19 +146,27 @@ const DQXTools = {
         this.addDarkModeButtonToMenu();
     },
 
-    // ==================== メニュー内にダークモードボタンを追加 ====================
-    addDarkModeButtonToMenu: function() {
-        const menuBar = document.getElementById('tool-menu-bar');
-        if (!menuBar) return;
+// ==================== メニュー内にホーム・ダークモードボタンを追加 ====================
+addDarkModeButtonToMenu: function() {
+    const menuBar = document.getElementById('tool-menu-bar');
+    if (!menuBar) return;
 
-        const darkBtn = document.createElement('button');
-        darkBtn.className = 'tool-menu-btn dark-mode-btn';
-        darkBtn.innerHTML = this.darkMode
-            ? '☀️<span class="menu-btn-label">ライト</span>'
-            : '🌙<span class="menu-btn-label">ダーク</span>';
-        darkBtn.onclick = () => this.toggleDarkMode();
-        menuBar.appendChild(darkBtn);
-    },
+    // ホームに戻るボタン
+    const homeBtn = document.createElement('button');
+    homeBtn.className = 'tool-menu-btn home-btn';
+    homeBtn.innerHTML = '🏠<span class="menu-btn-label">ホーム</span>';
+    homeBtn.onclick = () => this.goHome();
+    menuBar.appendChild(homeBtn);
+
+    // ダークモードボタン
+    const darkBtn = document.createElement('button');
+    darkBtn.className = 'tool-menu-btn dark-mode-btn';
+    darkBtn.innerHTML = this.darkMode
+        ? '☀️<span class="menu-btn-label">ライト</span>'
+        : '🌙<span class="menu-btn-label">ダーク</span>';
+    darkBtn.onclick = () => this.toggleDarkMode();
+    menuBar.appendChild(darkBtn);
+},
 
     // ==================== ツール読み込み ====================
     loadTool: async function(toolId) {
