@@ -29,7 +29,7 @@
                         <h3>📢 フィードバックはこちら</h3>
                         <div class="link-buttons">
                             <a href="https://github.com/yuffy-1111/dqx-event-data/issues" target="_blank" class="github-link">
-                                GitHub Issues
+                                🐙 GitHub Issues
                             </a>
                             <a href="https://x.com/yuffy_rre_dqx" target="_blank" class="x-link">
                                 𝕏 @yuffy_rre_dqx
