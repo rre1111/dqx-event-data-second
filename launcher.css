@@ -284,7 +284,7 @@ body.dark-mode .tool-menu-bottom {
     }
     
     .tool-card-desc {
-        display: none;
+        display: block;
     }
     
     .home-title {
