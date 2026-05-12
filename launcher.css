@@ -241,14 +241,16 @@ body.dark-mode .tool-menu-bottom {
 
 /* ----- レスポンシブ調整 ----- */
 @media (max-width: 768px) {
-    .home-grid {
-        grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
-        gap: 12px;
+    .tool-card {
+        padding: 12px 6px 8px 6px;  /* 上:12px 左右:6px 下:8px 左:6px */
     }
     
-    .tool-card {
-        padding: 6px 2px;
+    .tool-card-desc {
+        margin-bottom: 0;           /* 説明文の下マージンを0に */
+        line-height: 1.2;          /* 行間を詰める */
+        font-size: 9px;            /* 文字を小さく（任意） */
     }
+}
     
     .tool-card-icon {
         font-size: 36px;
