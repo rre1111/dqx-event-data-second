@@ -197,8 +197,8 @@ addDarkModeButtonToMenu: function() {
             { src: './images/dqx_loading.jpg',  weight: 30 },
             { src: './images/dqx_loading2.jpg', weight: 25 },
             { src: './images/dqx_loading3.jpg', weight: 25 },
-            { src: './images/dqx_loading4.jpg', weight: 17 },
-            { src: './images/dqx_loading5.jpg', weight: 3  },
+            { src: './images/dqx_loading4.jpg', weight: 18 },
+            { src: './images/dqx_loading5.jpg', weight: 2  },
         ];
         const totalWeight = loadingImages.reduce((sum, img) => sum + img.weight, 0);
         let rand = Math.random() * totalWeight;
@@ -235,7 +235,7 @@ addDarkModeButtonToMenu: function() {
         `;
         document.body.appendChild(loadingDiv);
 
-        await new Promise(resolve => setTimeout(resolve, 3000));
+        await new Promise(resolve => setTimeout(resolve, 1500));
 
         try {
             const oldScript = document.querySelector(`script[src="${tool.url}"]`);
