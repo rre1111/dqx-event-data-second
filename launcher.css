@@ -242,12 +242,12 @@ body.dark-mode .tool-menu-bottom {
 /* ----- レスポンシブ調整 ----- */
 @media (max-width: 768px) {
     .home-grid {
-        grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+        grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
         gap: 12px;
     }
     
     .tool-card {
-        padding: 14px 8px;
+        padding: 10px 6px;
     }
     
     .tool-card-icon {
