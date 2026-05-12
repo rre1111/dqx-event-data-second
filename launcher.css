@@ -142,6 +142,7 @@
     font-size: 20px;
     transition: all 0.2s;
     min-width: 50px;
+    overflow: visible;
 }
 
 .tool-menu-sidebar .tool-menu-btn {
