@@ -262,3 +262,17 @@ body.dark-mode .tool-menu-bottom {
         font-size: 1.4rem;
     }
 }
+/* expmercenary のダークモード定義の button !important を上書き */
+body.dark-mode #tool-menu-bar .tool-menu-btn {
+    background: transparent !important;
+    color: white !important;
+}
+
+body.dark-mode #tool-menu-bar .tool-menu-btn.active {
+    background: #0066cc !important;
+    color: white !important;
+}
+
+body.dark-mode #tool-menu-bar .tool-menu-btn:hover {
+    background: rgba(255, 255, 255, 0.15) !important;
+}
