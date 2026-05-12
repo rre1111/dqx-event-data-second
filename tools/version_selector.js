@@ -69,6 +69,8 @@
 
             // スタイル
             const style = document.createElement('style');
+                        // スタイル（ダークモード対応版）
+            const style = document.createElement('style');
             style.textContent = `
                 .vs-container {
                     max-width: 700px;
@@ -82,6 +84,7 @@
                 }
                 .vs-header h2 {
                     margin: 0 0 8px 0;
+                    color: #0066cc;
                 }
                 .vs-header p {
                     margin: 0;
@@ -101,6 +104,7 @@
                     background: #f9f9f9;
                     border-radius: 12px;
                     border: 1px solid #e0e0e0;
+                    cursor: pointer;
                     transition: all 0.2s;
                 }
                 .version-item:hover {
@@ -134,7 +138,13 @@
                 .open-btn:hover {
                     background: #0055aa;
                 }
-                /* ダークモード */
+                /* ===== ダークモード対応 ===== */
+                body.dark-mode .vs-header {
+                    border-bottom-color: #60a5fa;
+                }
+                body.dark-mode .vs-header h2 {
+                    color: #60a5fa;
+                }
                 body.dark-mode .vs-header p {
                     color: #94a3b8;
                 }
@@ -146,8 +156,17 @@
                     background: #2d3a4e;
                     border-color: #60a5fa;
                 }
+                body.dark-mode .version-desc {
+                    color: #60a5fa;
+                }
                 body.dark-mode .version-date {
                     color: #94a3b8;
+                }
+                body.dark-mode .open-btn {
+                    background: #3b82f6;
+                }
+                body.dark-mode .open-btn:hover {
+                    background: #2563eb;
                 }
                 /* スマホ対応 */
                 @media (max-width: 600px) {
