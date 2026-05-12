@@ -97,7 +97,7 @@
     right: 0;
     top: 0;
     bottom: 0;
-    width: 70px;
+    width: 90px;
     background: rgba(30, 30, 50, 0.95);
     backdrop-filter: blur(10px);
     display: flex;
@@ -150,10 +150,10 @@
 
 .tool-menu-bottom .tool-menu-btn {
     flex: 1;
-    flex-direction: row;
-    gap: 6px;
-    padding: 8px;
-    font-size: 18px;
+    flex-direction: column;
+    gap: 0;
+    padding: 8px 4px;
+    font-size: 22px;
 }
 
 .menu-btn-label {
@@ -162,7 +162,7 @@
 }
 
 .tool-menu-bottom .menu-btn-label {
-    font-size: 12px;
+    display: none;
 }
 
 .tool-menu-btn:hover {
