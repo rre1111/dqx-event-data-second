@@ -265,6 +265,7 @@ const DQXTools = {
             loadingDiv.remove();
 
             if (typeof fn === 'function') {
+                this.container.innerHTML = '';
                 fn('#dqx-tool-container');
                 this.currentTool = toolId;
                 // 【改造】ツールメニューを表示（ホームボタンではなく全ツールボタン）
