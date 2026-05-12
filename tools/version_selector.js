@@ -1,6 +1,5 @@
-// ========== 傭兵ツール バージョンセレクタ (HTML版) ==========
+// ========== 傭兵ツール バージョンセレクタ（新タブ表示版） ==========
 (function(global) {
-    // ★ あなたのGistのRaw URLをリストアップしました
     const VERSIONS = [
         {
             version: 'v1.5.5',
@@ -41,13 +40,10 @@
     ];
 
     const VersionSelector = {
-        currentIframe: null,
-
         render: function(containerSelector) {
             const container = document.querySelector(containerSelector);
             if (!container) return;
 
-            // バージョンリストのHTMLを生成
             const versionRows = VERSIONS.map(v => `
                 <div class="version-item" data-url="${v.url}" data-version="${v.version}">
                     <div class="version-info">
@@ -55,7 +51,7 @@
                         ${v.desc ? `<span class="version-desc">${v.desc}</span>` : ''}
                         <div class="version-date">${v.date}</div>
                     </div>
-                    <button class="load-btn">▶ 起動</button>
+                    <button class="open-btn">📂 新規タブで開く</button>
                 </div>
             `).join('');
 
@@ -63,34 +59,26 @@
                 <div class="vs-container">
                     <div class="vs-header">
                         <h2>📜 傭兵ツール 過去バージョン</h2>
-                        <p>過去のバージョンを選ぶと、右側のフレームで表示されます。</p>
+                        <p>各バージョンをクリックすると、新しいタブで開きます。</p>
                     </div>
-                    <div class="vs-main">
-                        <div class="vs-list">
-                            ${versionRows}
-                        </div>
-                        <div class="vs-preview">
-                            <div class="vs-placeholder">
-                                📱 左のリストからバージョンを選んでください
-                            </div>
-                        </div>
+                    <div class="vs-list">
+                        ${versionRows}
                     </div>
                 </div>
             `;
 
-            // スタイルを追加
+            // スタイル
             const style = document.createElement('style');
             style.textContent = `
                 .vs-container {
-                    display: flex;
-                    flex-direction: column;
-                    height: 100%;
-                    min-height: 600px;
+                    max-width: 700px;
+                    margin: 0 auto;
+                    padding: 20px;
                 }
                 .vs-header {
-                    padding: 16px;
-                    border-bottom: 1px solid #ddd;
-                    background: #f9f9f9;
+                    margin-bottom: 24px;
+                    padding-bottom: 16px;
+                    border-bottom: 2px solid #0066cc;
                 }
                 .vs-header h2 {
                     margin: 0 0 8px 0;
@@ -100,28 +88,25 @@
                     font-size: 13px;
                     color: #666;
                 }
-                .vs-main {
-                    display: flex;
-                    flex: 1;
-                    min-height: 500px;
-                }
                 .vs-list {
-                    width: 260px;
-                    border-right: 1px solid #ddd;
-                    overflow-y: auto;
-                    background: #fff;
+                    display: flex;
+                    flex-direction: column;
+                    gap: 8px;
                 }
                 .version-item {
                     display: flex;
                     justify-content: space-between;
                     align-items: center;
-                    padding: 12px;
-                    border-bottom: 1px solid #eee;
-                    cursor: pointer;
-                    transition: background 0.2s;
+                    padding: 16px;
+                    background: #f9f9f9;
+                    border-radius: 12px;
+                    border: 1px solid #e0e0e0;
+                    transition: all 0.2s;
                 }
                 .version-item:hover {
                     background: #f0f7ff;
+                    border-color: #0066cc;
+                    transform: translateX(4px);
                 }
                 .version-info {
                     flex: 1;
@@ -132,97 +117,71 @@
                     margin-left: 8px;
                 }
                 .version-date {
-                    font-size: 10px;
-                    color: #999;
+                    font-size: 11px;
+                    color: #888;
                     margin-top: 4px;
                 }
-                .load-btn {
+                .open-btn {
                     background: #0066cc;
                     color: white;
                     border: none;
-                    padding: 6px 14px;
-                    border-radius: 20px;
+                    padding: 8px 16px;
+                    border-radius: 24px;
                     cursor: pointer;
                     font-size: 12px;
+                    white-space: nowrap;
                 }
-                .load-btn:hover {
+                .open-btn:hover {
                     background: #0055aa;
                 }
-                .vs-preview {
-                    flex: 1;
-                    background: #f5f5f5;
-                    position: relative;
-                }
-                .vs-placeholder {
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    height: 100%;
-                    color: #999;
-                    font-size: 14px;
-                }
-                .vs-iframe {
-                    width: 100%;
-                    height: 100%;
-                    border: none;
-                    background: white;
-                }
                 /* ダークモード */
-                body.dark-mode .vs-header {
-                    background: #1e293b;
-                    border-bottom-color: #334155;
-                }
-                body.dark-mode .vs-list {
-                    background: #0f172a;
-                    border-right-color: #334155;
+                body.dark-mode .vs-header p {
+                    color: #94a3b8;
                 }
                 body.dark-mode .version-item {
-                    border-bottom-color: #1e293b;
+                    background: #1e293b;
+                    border-color: #334155;
                 }
                 body.dark-mode .version-item:hover {
-                    background: #1e293b;
+                    background: #2d3a4e;
+                    border-color: #60a5fa;
                 }
                 body.dark-mode .version-date {
-                    color: #64748b;
+                    color: #94a3b8;
                 }
-                body.dark-mode .vs-preview {
-                    background: #0f172a;
+                /* スマホ対応 */
+                @media (max-width: 600px) {
+                    .version-item {
+                        flex-direction: column;
+                        gap: 12px;
+                        text-align: center;
+                    }
+                    .open-btn {
+                        width: 100%;
+                    }
                 }
             `;
             container.appendChild(style);
 
             // イベント設定
             document.querySelectorAll('.version-item').forEach(item => {
-                const btn = item.querySelector('.load-btn');
                 const url = item.dataset.url;
-                const version = item.dataset.version;
+                const btn = item.querySelector('.open-btn');
 
-                const loadVersion = () => {
-                    const previewArea = document.querySelector('.vs-preview');
-                    if (this.currentIframe) {
-                        this.currentIframe.remove();
-                    }
-                    const iframe = document.createElement('iframe');
-                    iframe.src = url;
-                    iframe.className = 'vs-iframe';
-                    previewArea.innerHTML = '';
-                    previewArea.appendChild(iframe);
-                    this.currentIframe = iframe;
+                const openInNewTab = () => {
+                    window.open(url, '_blank');
                 };
 
                 btn.onclick = (e) => {
                     e.stopPropagation();
-                    loadVersion();
+                    openInNewTab();
                 };
-                item.onclick = loadVersion;
+                item.onclick = openInNewTab;
             });
         },
 
         destroy: function() {
-            if (this.currentIframe) {
-                this.currentIframe.remove();
-                this.currentIframe = null;
-            }
+            // クリーンアップ不要
         }
     };
 
