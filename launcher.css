@@ -176,8 +176,16 @@
     box-shadow: 0 2px 8px rgba(0, 102, 204, 0.4);
 }
 
-.dark-mode-btn {
+.home-btn {
     margin-top: auto;
+}
+
+.tool-menu-bottom .home-btn {
+    margin-top: 0;
+}
+
+.dark-mode-btn {
+    margin-top: 0;
 }
 
 .tool-menu-bottom .dark-mode-btn {
