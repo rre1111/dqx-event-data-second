@@ -25,73 +25,29 @@
                         <div id="storageInfo"></div>
                     </div>
 
+                    <div class="feedback-card">
+                        <h3>📢 フィードバックはこちら</h3>
+                        <div class="link-buttons">
+                            <a href="https://github.com/yuffy-1111/dqx-event-data/issues" target="_blank" class="github-link">
+                                GitHub Issues
+                            </a>
+                            <a href="https://x.com/yuffy_rre_dqx" target="_blank" class="x-link">
+                                𝕏 @yuffy_rre_dqx
+                            </a>
+                        </div>
+                    </div>
+
                     <div class="settings-card">
                         <h3>ℹ️ このツールについて</h3>
                         <p>DQXツールセット - ユッフィー製作</p>
                         <p>バージョン: 2.0.0</p>
-                        <div class="link-buttons">
-                            <a href="https://github.com/yuffy-1111/dqx-event-data/issues" target="_blank" class="github-link">
-                                💻 GitHub Issues
-                            </a>
-                            <a href="https://x.com/yuffy_rre_dqx" target="_blank" class="x-link">
-                                𝕏 @yuffy_1111
-                            </a>
-                        </div>
                     </div>
+                </div>
             `;
 
-            // スタイルを追加（ダークモード対応済み）
+            // スタイル
             const style = document.createElement('style');
             style.textContent = `
-                                .link-buttons {
-                    margin-top: 16px;
-                    padding-top: 12px;
-                    border-top: 1px solid #e0e0e0;
-                    display: flex;
-                    gap: 12px;
-                    justify-content: center;
-                    flex-wrap: wrap;
-                }
-                .github-link {
-                    display: inline-block;
-                    padding: 8px 16px;
-                    background: #24292f;
-                    color: white;
-                    text-decoration: none;
-                    border-radius: 24px;
-                    font-size: 13px;
-                }
-                .github-link:hover {
-                    background: #3b444f;
-                }
-                .x-link {
-                    display: inline-block;
-                    padding: 8px 16px;
-                    background: #000000;
-                    color: white;
-                    text-decoration: none;
-                    border-radius: 24px;
-                    font-size: 13px;
-                }
-                .x-link:hover {
-                    background: #333333;
-                }
-                /* ダークモード */
-                body.dark-mode .link-buttons {
-                    border-top-color: #334155;
-                }
-                body.dark-mode .github-link {
-                    background: #4b5563;
-                }
-                body.dark-mode .github-link:hover {
-                    background: #6b7280;
-                }
-                body.dark-mode .x-link {
-                    background: #1e293b;
-                }
-                body.dark-mode .x-link:hover {
-                    background: #334155;
-                }
                 .settings-container {
                     max-width: 600px;
                     margin: 0 auto;
@@ -108,7 +64,15 @@
                     margin: 20px 0;
                     border: 1px solid #e0e0e0;
                 }
-                .settings-card h3 {
+                .feedback-card {
+                    background: #f5f5f5;
+                    border-radius: 12px;
+                    padding: 16px;
+                    margin: 20px 0;
+                    border: 1px solid #e0e0e0;
+                    text-align: center;
+                }
+                .settings-card h3, .feedback-card h3 {
                     margin: 0 0 12px 0;
                     color: #333;
                 }
@@ -143,6 +107,36 @@
                     margin: 8px 0;
                     font-size: 14px;
                 }
+                .link-buttons {
+                    display: flex;
+                    gap: 16px;
+                    justify-content: center;
+                    flex-wrap: wrap;
+                }
+                .github-link {
+                    display: inline-block;
+                    padding: 10px 20px;
+                    background: #24292f;
+                    color: white;
+                    text-decoration: none;
+                    border-radius: 30px;
+                    font-size: 14px;
+                }
+                .github-link:hover {
+                    background: #3b444f;
+                }
+                .x-link {
+                    display: inline-block;
+                    padding: 10px 20px;
+                    background: #000000;
+                    color: white;
+                    text-decoration: none;
+                    border-radius: 30px;
+                    font-size: 14px;
+                }
+                .x-link:hover {
+                    background: #333333;
+                }
                 /* ダークモード */
                 body.dark-mode .settings-container h2 {
                     color: #60a5fa;
@@ -151,7 +145,14 @@
                     background: #1e293b;
                     border-color: #334155;
                 }
+                body.dark-mode .feedback-card {
+                    background: #1e293b;
+                    border-color: #334155;
+                }
                 body.dark-mode .settings-card h3 {
+                    color: #e2e8f0;
+                }
+                body.dark-mode .feedback-card h3 {
                     color: #e2e8f0;
                 }
                 body.dark-mode .settings-card p {
@@ -166,6 +167,18 @@
                 }
                 body.dark-mode #storageInfo {
                     color: #cbd5e1;
+                }
+                body.dark-mode .github-link {
+                    background: #4b5563;
+                }
+                body.dark-mode .github-link:hover {
+                    background: #6b7280;
+                }
+                body.dark-mode .x-link {
+                    background: #1e293b;
+                }
+                body.dark-mode .x-link:hover {
+                    background: #334155;
                 }
             `;
             container.appendChild(style);
@@ -213,7 +226,7 @@
             const checkerBtn = document.getElementById('clearCheckerCache');
             if (checkerBtn) {
                 checkerBtn.onclick = () => {
-                    if (confirm('チェッカーのデータを削除します。よろしいですか？')) {
+                    if (confirm('チェッカーのデータ（キャラクター、チェック状態、非表示設定）を削除します。よろしいですか？')) {
                         const keysToRemove = [];
                         for (let i = 0; i < localStorage.length; i++) {
                             const key = localStorage.key(i);
