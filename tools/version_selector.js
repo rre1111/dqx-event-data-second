@@ -1,4 +1,4 @@
-// ========== 傭兵ツール バージョンセレクタ ==========
+// ========== 傭兵ツール バージョンセレクタ（修正版） ==========
 (function(global) {
     const VERSIONS = [
         { version: 'v1.5.5', date: '2026-05-12', url: './old_tools/ver155.html', desc: 'はてなブログ版' },
@@ -12,35 +12,50 @@
     let currentIframe = null;
     let isPreviewMode = false;
     let selectedUrl = '';
-    let containerSelector = '';
+    let currentContainerSelector = '';  // ★修正①: 変数名を明確に
+    let currentContainer = null;         // ★修正②: コンテナ参照を保持
 
     const VersionSelector = {
         render: function(selector) {
-            containerSelector = selector;
-            const container = document.querySelector(selector);
-            if (!container) return;
+            // ★修正③: エラーチェック強化
+            if (!selector) {
+                console.error('VersionSelector: selector is required');
+                return;
+            }
+            
+            currentContainerSelector = selector;
+            currentContainer = document.querySelector(selector);
+            
+            if (!currentContainer) {
+                console.error('VersionSelector: container not found:', selector);
+                return;
+            }
 
+            // ★修正④: 以前のレンダリングを完全クリア
+            this.destroy();
+            
             const isMobile = window.innerWidth <= 768;
 
             if (!isMobile) {
-                this.renderPc(container);
+                this.renderPc(currentContainer);
             } else {
                 if (!isPreviewMode) {
-                    this.renderMobileList(container);
+                    this.renderMobileList(currentContainer);
                 } else {
-                    this.renderMobilePreview(container);
+                    this.renderMobilePreview(currentContainer);
                 }
             }
         },
 
         renderMobileList: function(container) {
             isPreviewMode = false;
+            selectedUrl = '';
             
-            const versionRows = VERSIONS.map(v => `
-                <div class="version-item" data-url="${v.url}" data-version="${v.version}">
+            const versionRows = VERSIONS.map((v, index) => `
+                <div class="version-item" data-url="${v.url}" data-version="${v.version}" data-index="${index}">
                     <div class="version-info">
                         <strong>${v.version}</strong>
-                        ${v.desc ? `<span class="version-desc">${v.desc}</span>` : ''}
+                        ${v.desc ? `<span class="version-desc">${this.escapeHtml(v.desc)}</span>` : ''}
                         <div class="version-date">${v.date}</div>
                     </div>
                     <button class="preview-btn">▶ 選択</button>
@@ -61,53 +76,87 @@
 
             this.addStyles(container);
 
-            // イベント設定
-            document.querySelectorAll('.version-item').forEach(item => {
-                const url = item.dataset.url;
-                const btn = item.querySelector('.preview-btn');
+            // ★修正⑤: イベントリスナーを確実にバインド（重複防止）
+            const versionItems = document.querySelectorAll('.version-item');
+            versionItems.forEach(item => {
+                // 既存のイベントを削除してから追加
+                const newItem = item.cloneNode(true);
+                item.parentNode.replaceChild(newItem, item);
                 
-                const selectVersion = () => {
+                const url = newItem.dataset.url;
+                const btn = newItem.querySelector('.preview-btn');
+                
+                const selectVersion = (e) => {
+                    if (e) e.stopPropagation();
                     selectedUrl = url;
                     isPreviewMode = true;
-                    this.render(containerSelector);
+                    this.render(currentContainerSelector);
                 };
 
-                btn.onclick = (e) => {
-                    e.stopPropagation();
-                    selectVersion();
-                };
-                item.onclick = selectVersion;
+                if (btn) {
+                    btn.onclick = (e) => {
+                        e.stopPropagation();
+                        selectVersion();
+                    };
+                }
+                newItem.onclick = selectVersion;
             });
         },
 
         renderMobilePreview: function(container) {
+            if (!selectedUrl) {
+                // エラー時はリストに戻る
+                isPreviewMode = false;
+                this.render(currentContainerSelector);
+                return;
+            }
+
             container.innerHTML = `
                 <div class="vs-mobile-preview">
+                    <div class="preview-header">
+                        <button id="backToListBtn" class="back-btn">← 戻る</button>
+                        <span class="preview-version">${this.getVersionFromUrl(selectedUrl)}</span>
+                    </div>
                     <div id="previewArea" class="preview-content"></div>
                 </div>
             `;
 
             this.addStyles(container);
 
+            // 戻るボタンのイベント
+            const backBtn = document.getElementById('backToListBtn');
+            if (backBtn) {
+                backBtn.onclick = () => {
+                    this.destroy();  // iframeを確実に破棄
+                    isPreviewMode = false;
+                    selectedUrl = '';
+                    this.render(currentContainerSelector);
+                };
+            }
+
             // iframeを読み込む
             const previewArea = document.getElementById('previewArea');
             if (previewArea && selectedUrl) {
-                if (currentIframe) currentIframe.remove();
+                if (currentIframe) {
+                    currentIframe.remove();
+                    currentIframe = null;
+                }
                 
                 const iframe = document.createElement('iframe');
                 iframe.src = selectedUrl;
                 iframe.style.cssText = 'width:100%;height:100%;border:none;background:white;';
+                iframe.sandbox = 'allow-same-origin allow-scripts allow-popups allow-forms';
                 previewArea.appendChild(iframe);
                 currentIframe = iframe;
             }
         },
 
         renderPc: function(container) {
-            const versionRows = VERSIONS.map(v => `
-                <div class="version-item" data-url="${v.url}" data-version="${v.version}">
+            const versionRows = VERSIONS.map((v, index) => `
+                <div class="version-item" data-url="${v.url}" data-version="${v.version}" data-index="${index}">
                     <div class="version-info">
                         <strong>${v.version}</strong>
-                        ${v.desc ? `<span class="version-desc">${v.desc}</span>` : ''}
+                        ${v.desc ? `<span class="version-desc">${this.escapeHtml(v.desc)}</span>` : ''}
                         <div class="version-date">${v.date}</div>
                     </div>
                     <button class="preview-btn">プレビュー</button>
@@ -134,27 +183,59 @@
             this.addStyles(container);
 
             // PC用イベント
-            document.querySelectorAll('.version-item').forEach(item => {
-                const url = item.dataset.url;
-                const btn = item.querySelector('.preview-btn');
+            const versionItems = document.querySelectorAll('.version-item');
+            versionItems.forEach(item => {
+                const newItem = item.cloneNode(true);
+                item.parentNode.replaceChild(newItem, item);
+                
+                const url = newItem.dataset.url;
+                const btn = newItem.querySelector('.preview-btn');
                 
                 const showPreview = () => {
                     const previewArea = document.getElementById('pcPreviewArea');
-                    if (currentIframe) currentIframe.remove();
+                    if (!previewArea) return;
+                    
+                    if (currentIframe) {
+                        currentIframe.remove();
+                        currentIframe = null;
+                    }
                     
                     const iframe = document.createElement('iframe');
                     iframe.src = url;
                     iframe.style.cssText = 'width:100%;height:100%;border:none;background:white;';
+                    iframe.sandbox = 'allow-same-origin allow-scripts allow-popups allow-forms';
                     previewArea.innerHTML = '';
                     previewArea.appendChild(iframe);
                     currentIframe = iframe;
                 };
 
-                btn.onclick = (e) => {
-                    e.stopPropagation();
-                    showPreview();
-                };
-                item.onclick = showPreview;
+                if (btn) {
+                    btn.onclick = (e) => {
+                        e.stopPropagation();
+                        showPreview();
+                    };
+                }
+                newItem.onclick = showPreview;
+            });
+        },
+
+        getVersionFromUrl: function(url) {
+            const match = url.match(/ver(\d+)\.html/);
+            if (match) {
+                const verNum = match[1];
+                const version = VERSIONS.find(v => v.url === url);
+                return version ? version.version : `v${verNum[0]}.${verNum[1]}.${verNum[2]}`;
+            }
+            return '旧バージョン';
+        },
+
+        escapeHtml: function(str) {
+            if (!str) return '';
+            return str.replace(/[&<>]/g, function(m) {
+                if (m === '&') return '&amp;';
+                if (m === '<') return '&lt;';
+                if (m === '>') return '&gt;';
+                return m;
             });
         },
 
@@ -176,7 +257,8 @@
                 .version-info { flex: 1; }
                 .version-desc { font-size: 11px; color: #0066cc; margin-left: 6px; }
                 .version-date { font-size: 10px; color: #999; margin-top: 4px; }
-                .preview-btn { background: #0066cc; color: white; border: none; padding: 6px 14px; border-radius: 20px; cursor: pointer; }
+                .preview-btn { background: #0066cc; color: white; border: none; padding: 6px 14px; border-radius: 20px; cursor: pointer; font-size: 12px; }
+                .preview-btn:hover { background: #0052a3; }
                 .vs-preview-area { flex: 1; background: #f5f5f5; }
                 .vs-placeholder { display: flex; align-items: center; justify-content: center; height: 100%; color: #999; }
                 
@@ -186,6 +268,10 @@
                 
                 /* スマホ：プレビュー画面 */
                 .vs-mobile-preview { display: flex; flex-direction: column; height: 100vh; position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 2000; background: white; }
+                .preview-header { display: flex; align-items: center; padding: 12px 16px; background: #0066cc; color: white; gap: 16px; }
+                .back-btn { background: rgba(255,255,255,0.2); border: none; color: white; padding: 8px 16px; border-radius: 20px; cursor: pointer; font-size: 14px; }
+                .back-btn:hover { background: rgba(255,255,255,0.3); }
+                .preview-version { font-size: 14px; font-weight: bold; }
                 .preview-content { flex: 1; background: white; overflow: auto; }
                 
                 /* ダークモード */
@@ -199,17 +285,27 @@
                 body.dark-mode .vs-preview-area { background: #0f172a; }
                 body.dark-mode .vs-mobile-preview { background: #0f172a; }
                 body.dark-mode .preview-content { background: #0f172a; }
+                body.dark-mode .preview-header { background: #0f172a; border-bottom: 1px solid #334155; }
             `;
             container.appendChild(style);
         },
 
         destroy: function() {
+            // ★修正⑥: 完全な破棄処理
             if (currentIframe) {
                 currentIframe.remove();
                 currentIframe = null;
             }
+            
+            // プレビューモードをリセット
             isPreviewMode = false;
             selectedUrl = '';
+            currentContainerSelector = '';
+            currentContainer = null;
+            
+            // スタイルは残しても良いが、一応削除オプション（コメントアウト）
+            // const style = document.getElementById('vs-styles');
+            // if (style) style.remove();
         }
     };
 
