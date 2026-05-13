@@ -1,4 +1,4 @@
-// ========== 傭兵ツール バージョンセレクタ（修正版） ==========
+// ========== 傭兵ツール バージョンセレクタ（エラー修正版） ==========
 (function(global) {
     const VERSIONS = [
         { version: 'v1.5.5', date: '2026-05-12', url: './old_tools/ver155.html', desc: 'はてなブログ版' },
@@ -12,12 +12,23 @@
     let currentIframe = null;
     let isPreviewMode = false;
     let selectedUrl = '';
-    let currentContainerSelector = '';  // ★修正①: 変数名を明確に
-    let currentContainer = null;         // ★修正②: コンテナ参照を保持
+    let currentContainerSelector = '';
+    let currentContainer = null;
 
     const VersionSelector = {
+        // ★ destroy を先に定義（これが呼ばれる前にエラーにならないように）
+        destroy: function() {
+            if (currentIframe) {
+                currentIframe.remove();
+                currentIframe = null;
+            }
+            isPreviewMode = false;
+            selectedUrl = '';
+            currentContainerSelector = '';
+            currentContainer = null;
+        },
+
         render: function(selector) {
-            // ★修正③: エラーチェック強化
             if (!selector) {
                 console.error('VersionSelector: selector is required');
                 return;
@@ -31,8 +42,11 @@
                 return;
             }
 
-            // ★修正④: 以前のレンダリングを完全クリア
-            this.destroy();
+            // ★ 既存のコンテンツをクリア（destroyは呼ばない）
+            if (currentIframe) {
+                currentIframe.remove();
+                currentIframe = null;
+            }
             
             const isMobile = window.innerWidth <= 768;
 
@@ -75,37 +89,11 @@
             `;
 
             this.addStyles(container);
-
-            // ★修正⑤: イベントリスナーを確実にバインド（重複防止）
-            const versionItems = document.querySelectorAll('.version-item');
-            versionItems.forEach(item => {
-                // 既存のイベントを削除してから追加
-                const newItem = item.cloneNode(true);
-                item.parentNode.replaceChild(newItem, item);
-                
-                const url = newItem.dataset.url;
-                const btn = newItem.querySelector('.preview-btn');
-                
-                const selectVersion = (e) => {
-                    if (e) e.stopPropagation();
-                    selectedUrl = url;
-                    isPreviewMode = true;
-                    this.render(currentContainerSelector);
-                };
-
-                if (btn) {
-                    btn.onclick = (e) => {
-                        e.stopPropagation();
-                        selectVersion();
-                    };
-                }
-                newItem.onclick = selectVersion;
-            });
+            this.bindEvents(container);
         },
 
         renderMobilePreview: function(container) {
             if (!selectedUrl) {
-                // エラー時はリストに戻る
                 isPreviewMode = false;
                 this.render(currentContainerSelector);
                 return;
@@ -123,18 +111,19 @@
 
             this.addStyles(container);
 
-            // 戻るボタンのイベント
             const backBtn = document.getElementById('backToListBtn');
             if (backBtn) {
                 backBtn.onclick = () => {
-                    this.destroy();  // iframeを確実に破棄
+                    if (currentIframe) {
+                        currentIframe.remove();
+                        currentIframe = null;
+                    }
                     isPreviewMode = false;
                     selectedUrl = '';
                     this.render(currentContainerSelector);
                 };
             }
 
-            // iframeを読み込む
             const previewArea = document.getElementById('previewArea');
             if (previewArea && selectedUrl) {
                 if (currentIframe) {
@@ -145,7 +134,6 @@
                 const iframe = document.createElement('iframe');
                 iframe.src = selectedUrl;
                 iframe.style.cssText = 'width:100%;height:100%;border:none;background:white;';
-                iframe.sandbox = 'allow-same-origin allow-scripts allow-popups allow-forms';
                 previewArea.appendChild(iframe);
                 currentIframe = iframe;
             }
@@ -181,15 +169,37 @@
             `;
 
             this.addStyles(container);
+            this.bindPcEvents(container);
+        },
 
-            // PC用イベント
-            const versionItems = document.querySelectorAll('.version-item');
+        bindEvents: function(container) {
+            const versionItems = container.querySelectorAll('.version-item');
             versionItems.forEach(item => {
-                const newItem = item.cloneNode(true);
-                item.parentNode.replaceChild(newItem, item);
+                const url = item.dataset.url;
+                const btn = item.querySelector('.preview-btn');
                 
-                const url = newItem.dataset.url;
-                const btn = newItem.querySelector('.preview-btn');
+                const selectVersion = (e) => {
+                    if (e) e.stopPropagation();
+                    selectedUrl = url;
+                    isPreviewMode = true;
+                    this.render(currentContainerSelector);
+                };
+
+                if (btn) {
+                    btn.onclick = (e) => {
+                        e.stopPropagation();
+                        selectVersion();
+                    };
+                }
+                item.onclick = selectVersion;
+            });
+        },
+
+        bindPcEvents: function(container) {
+            const versionItems = container.querySelectorAll('.version-item');
+            versionItems.forEach(item => {
+                const url = item.dataset.url;
+                const btn = item.querySelector('.preview-btn');
                 
                 const showPreview = () => {
                     const previewArea = document.getElementById('pcPreviewArea');
@@ -203,7 +213,6 @@
                     const iframe = document.createElement('iframe');
                     iframe.src = url;
                     iframe.style.cssText = 'width:100%;height:100%;border:none;background:white;';
-                    iframe.sandbox = 'allow-same-origin allow-scripts allow-popups allow-forms';
                     previewArea.innerHTML = '';
                     previewArea.appendChild(iframe);
                     currentIframe = iframe;
@@ -215,18 +224,13 @@
                         showPreview();
                     };
                 }
-                newItem.onclick = showPreview;
+                item.onclick = showPreview;
             });
         },
 
         getVersionFromUrl: function(url) {
-            const match = url.match(/ver(\d+)\.html/);
-            if (match) {
-                const verNum = match[1];
-                const version = VERSIONS.find(v => v.url === url);
-                return version ? version.version : `v${verNum[0]}.${verNum[1]}.${verNum[2]}`;
-            }
-            return '旧バージョン';
+            const version = VERSIONS.find(v => v.url === url);
+            return version ? version.version : '旧バージョン';
         },
 
         escapeHtml: function(str) {
@@ -262,16 +266,12 @@
                 .vs-preview-area { flex: 1; background: #f5f5f5; }
                 .vs-placeholder { display: flex; align-items: center; justify-content: center; height: 100%; color: #999; }
                 
-                /* スマホ：リスト画面 */
+                /* スマホ */
                 .vs-mobile-list { display: flex; flex-direction: column; height: 100%; }
                 .vs-mobile-list .vs-list { width: 100%; border-right: none; flex: 1; }
-                
-                /* スマホ：プレビュー画面 */
                 .vs-mobile-preview { display: flex; flex-direction: column; height: 100vh; position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 2000; background: white; }
                 .preview-header { display: flex; align-items: center; padding: 12px 16px; background: #0066cc; color: white; gap: 16px; }
                 .back-btn { background: rgba(255,255,255,0.2); border: none; color: white; padding: 8px 16px; border-radius: 20px; cursor: pointer; font-size: 14px; }
-                .back-btn:hover { background: rgba(255,255,255,0.3); }
-                .preview-version { font-size: 14px; font-weight: bold; }
                 .preview-content { flex: 1; background: white; overflow: auto; }
                 
                 /* ダークモード */
@@ -286,26 +286,9 @@
                 body.dark-mode .vs-mobile-preview { background: #0f172a; }
                 body.dark-mode .preview-content { background: #0f172a; }
                 body.dark-mode .preview-header { background: #0f172a; border-bottom: 1px solid #334155; }
+                body.dark-mode .back-btn { background: #1e293b; }
             `;
             container.appendChild(style);
-        },
-
-        destroy: function() {
-            // ★修正⑥: 完全な破棄処理
-            if (currentIframe) {
-                currentIframe.remove();
-                currentIframe = null;
-            }
-            
-            // プレビューモードをリセット
-            isPreviewMode = false;
-            selectedUrl = '';
-            currentContainerSelector = '';
-            currentContainer = null;
-            
-            // スタイルは残しても良いが、一応削除オプション（コメントアウト）
-            // const style = document.getElementById('vs-styles');
-            // if (style) style.remove();
         }
     };
 
