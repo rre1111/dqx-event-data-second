@@ -258,8 +258,9 @@ body.dark-mode .tool-menu-bottom {
     .home-grid {
         grid-template-columns: repeat(3, minmax(0, 1fr));
         column-gap: 10px;
-        row-gap: 6px;
+        row-gap: 10px;
         margin-bottom: 20px;
+        grid-auto-rows: min-content;
     }
     
     .tool-card {
