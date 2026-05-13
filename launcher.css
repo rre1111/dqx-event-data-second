@@ -256,17 +256,16 @@ body.dark-mode .tool-menu-bottom {
 /* ----- レスポンシブ調整（スマホ:3列＋折り返し許可＋説明文表示） ----- */
 @media (max-width: 768px) {
     .home-grid {
-        grid-template-columns: repeat(3, minmax(0, 1fr));
+        grid-template-columns: repeat(3, 1fr);
         column-gap: 10px;
         row-gap: 10px;
         margin-bottom: 20px;
-        grid-auto-rows: min-content;
     }
     
     .tool-card {
         padding: 10px 6px;
         gap: 4px;
-        min-height: 120px;
+        height: 110px;
     }
     
     .tool-card-icon {
