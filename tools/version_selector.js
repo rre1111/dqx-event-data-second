@@ -7,7 +7,6 @@
             date: '2026-05-12',
             url: './old_tools/ver155.html',
             desc: 'はてなブログ版',
-            isCurrent: true
         },
         {
             version: 'v1.4.5',
@@ -53,7 +52,6 @@
                 <div class="version-item" data-version="${v.version}" data-url="${v.url}">
                     <div class="version-info">
                         <strong>${v.version}</strong>
-                        ${v.isCurrent ? '<span class="current-badge">最新</span>' : ''}
                         ${v.desc ? `<span class="version-desc">${v.desc}</span>` : ''}
                         <div class="version-date">${v.date}</div>
                     </div>
