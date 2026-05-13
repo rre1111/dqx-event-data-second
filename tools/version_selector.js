@@ -1,55 +1,125 @@
-// ========== 傭兵ツール バージョンセレクタ（リポジトリ内ファイル版） ==========
+// ========== 傭兵ツール バージョンセレクタ ==========
 (function(global) {
-    // バージョン一覧（./old_tools/ 以下のファイルを参照）
     const VERSIONS = [
-        {
-            version: 'v1.5.5',
-            date: '2026-05-12',
-            url: './old_tools/ver155.html',
-            desc: 'はてなブログ版',
-        },
-        {
-            version: 'v1.4.5',
-            date: '2026-04-xx',
-            url: './old_tools/ver145.html',
-            desc: ''
-        },
-        {
-            version: 'v1.4.1',
-            date: '2026-04-xx',
-            url: './old_tools/ver141.html',
-            desc: 'ウェブフック版'
-        },
-        {
-            version: 'v1.3.0',
-            date: '2026-03-xx',
-            url: './old_tools/ver130.html',
-            desc: ''
-        },
-        {
-            version: 'v1.2.6',
-            date: '2026-03-xx',
-            url: './old_tools/ver126.html',
-            desc: 'Blue Edition'
-        },
-        {
-            version: 'v1.1.7',
-            date: '2026-02-xx',
-            url: './old_tools/ver117.html',
-            desc: ''
-        }
+        { version: 'v1.5.5', date: '2026-05-12', url: './old_tools/ver155.html', desc: 'はてなブログ版' },
+        { version: 'v1.4.5', date: '2026-04-xx', url: './old_tools/ver145.html', desc: '' },
+        { version: 'v1.4.1', date: '2026-04-xx', url: './old_tools/ver141.html', desc: 'ウェブフック版' },
+        { version: 'v1.3.0', date: '2026-03-xx', url: './old_tools/ver130.html', desc: '' },
+        { version: 'v1.2.6', date: '2026-03-xx', url: './old_tools/ver126.html', desc: 'Blue Edition' },
+        { version: 'v1.1.7', date: '2026-02-xx', url: './old_tools/ver117.html', desc: '' }
     ];
 
     const VersionSelector = {
         currentIframe: null,
-        activeVersion: null,
+        isPreviewMode: false,  // スマホでプレビューモードか
 
         render: function(containerSelector) {
             const container = document.querySelector(containerSelector);
             if (!container) return;
 
+            const isMobile = window.innerWidth <= 768;
+
+            if (isMobile) {
+                // ===== スマホ：初期はリスト表示 =====
+                this.renderMobileList(container);
+            } else {
+                // ===== PC：左リスト + 右プレビュー（現状維持）=====
+                this.renderPcLayout(container);
+            }
+        },
+
+        // スマホ：リスト表示
+        renderMobileList: function(container) {
+            this.isPreviewMode = false;
+            
             const versionRows = VERSIONS.map(v => `
-                <div class="version-item" data-version="${v.version}" data-url="${v.url}">
+                <div class="version-item" data-url="${v.url}" data-version="${v.version}">
+                    <div class="version-info">
+                        <strong>${v.version}</strong>
+                        ${v.desc ? `<span class="version-desc">${v.desc}</span>` : ''}
+                        <div class="version-date">${v.date}</div>
+                    </div>
+                    <button class="preview-btn">▶ 選択</button>
+                </div>
+            `).join('');
+
+            container.innerHTML = `
+                <div class="vs-mobile-container">
+                    <div class="vs-header">
+                        <h2>📜 傭兵ツール 過去バージョン</h2>
+                        <p>バージョンを選ぶと、画面いっぱいにプレビュー表示されます</p>
+                    </div>
+                    <div class="vs-list-mobile">
+                        ${versionRows}
+                    </div>
+                </div>
+            `;
+
+            // スタイル
+            this.addStyles(container);
+            
+            // イベント設定
+            document.querySelectorAll('.version-item').forEach(item => {
+                const btn = item.querySelector('.preview-btn');
+                const url = item.dataset.url;
+                const version = item.dataset.version;
+                
+                const selectVersion = () => {
+                    this.switchToFullPreview(container, url, version);
+                };
+                
+                btn.onclick = (e) => {
+                    e.stopPropagation();
+                    selectVersion();
+                };
+                item.onclick = selectVersion;
+            });
+        },
+
+        // スマホ：プレビュー全画面表示
+        switchToFullPreview: function(container, url, version) {
+            this.isPreviewMode = true;
+            
+            // 以前のiframeを削除
+            if (this.currentIframe) {
+                this.currentIframe.remove();
+            }
+            
+            // プレビュー専用レイアウトに切り替え（ヘッダー＋プレビューのみ）
+            container.innerHTML = `
+                <div class="vs-mobile-preview-full">
+                    <div class="vs-preview-header">
+                        <span>📜 ${version}</span>
+                        <button id="backToListBtn" class="back-btn">← 戻る</button>
+                    </div>
+                    <div id="fullPreviewArea" class="vs-preview-area"></div>
+                </div>
+            `;
+            
+            // iframe作成
+            const previewArea = document.getElementById('fullPreviewArea');
+            const iframe = document.createElement('iframe');
+            iframe.src = url;
+            iframe.style.cssText = 'width:100%;height:100%;border:none;background:white;';
+            previewArea.appendChild(iframe);
+            this.currentIframe = iframe;
+            
+            // 戻るボタン
+            const backBtn = document.getElementById('backToListBtn');
+            if (backBtn) {
+                backBtn.onclick = () => {
+                    this.renderMobileList(container);
+                };
+            }
+            
+            // スタイル再適用
+            this.addStyles(container);
+        },
+
+        // PC：現状維持のレイアウト
+        renderPcLayout: function(container) {
+            const versionRows = VERSIONS.map(v => `
+                <div class="version-item" data-url="${v.url}" data-version="${v.version}">
                     <div class="version-info">
                         <strong>${v.version}</strong>
                         ${v.desc ? `<span class="version-desc">${v.desc}</span>` : ''}
@@ -70,17 +140,49 @@
                             ${versionRows}
                         </div>
                         <div class="vs-preview">
-                            <div class="vs-placeholder">
-                                📱 左のリストからバージョンを選んでください
-                            </div>
+                            <div class="vs-placeholder">左のリストからバージョンを選んでください</div>
                         </div>
                     </div>
                 </div>
             `;
 
-            // スタイル
+            this.addStyles(container);
+            
+            // PC用イベント
+            document.querySelectorAll('.version-item').forEach(item => {
+                const btn = item.querySelector('.preview-btn');
+                const url = item.dataset.url;
+                const version = item.dataset.version;
+                
+                const showPreview = () => {
+                    const previewArea = document.querySelector('.vs-preview');
+                    if (this.currentIframe) this.currentIframe.remove();
+                    const iframe = document.createElement('iframe');
+                    iframe.src = url;
+                    iframe.className = 'vs-iframe';
+                    iframe.title = `傭兵ツール ${version}`;
+                    previewArea.innerHTML = '';
+                    previewArea.appendChild(iframe);
+                    this.currentIframe = iframe;
+                };
+                
+                btn.onclick = (e) => {
+                    e.stopPropagation();
+                    showPreview();
+                };
+                item.onclick = showPreview;
+            });
+        },
+
+        addStyles: function(container) {
+            // 既存のスタイルを削除して再追加（重複防止）
+            const oldStyle = container.querySelector('#vs-styles');
+            if (oldStyle) oldStyle.remove();
+            
             const style = document.createElement('style');
+            style.id = 'vs-styles';
             style.textContent = `
+                /* ===== PC用スタイル ===== */
                 .vs-container {
                     display: flex;
                     flex-direction: column;
@@ -94,6 +196,7 @@
                 }
                 .vs-header h2 {
                     margin: 0 0 8px 0;
+                    font-size: 1.2rem;
                 }
                 .vs-header p {
                     margin: 0;
@@ -123,21 +226,8 @@
                 .version-item:hover {
                     background: #f0f7ff;
                 }
-                .version-item.active {
-                    background: #e0edff;
-                }
                 .version-info {
                     flex: 1;
-                }
-                .current-badge {
-                    display: inline-block;
-                    background: #0066cc;
-                    color: white;
-                    font-size: 9px;
-                    padding: 2px 6px;
-                    border-radius: 12px;
-                    margin-left: 6px;
-                    vertical-align: middle;
                 }
                 .version-desc {
                     font-size: 11px;
@@ -165,7 +255,6 @@
                     flex: 1;
                     background: #f5f5f5;
                     position: relative;
-                    overflow: hidden;
                 }
                 .vs-placeholder {
                     display: flex;
@@ -173,7 +262,6 @@
                     justify-content: center;
                     height: 100%;
                     color: #999;
-                    font-size: 14px;
                 }
                 .vs-iframe {
                     width: 100%;
@@ -181,6 +269,60 @@
                     border: none;
                     background: white;
                 }
+                
+                /* ===== スマホ用スタイル ===== */
+                .vs-mobile-container {
+                    display: flex;
+                    flex-direction: column;
+                    height: 100%;
+                }
+                .vs-list-mobile {
+                    flex: 1;
+                    overflow-y: auto;
+                }
+                .vs-mobile-container .version-item {
+                    padding: 14px;
+                }
+                .vs-mobile-container .preview-btn {
+                    padding: 8px 16px;
+                    font-size: 13px;
+                }
+                
+                /* スマホ：プレビュー全画面 */
+                .vs-mobile-preview-full {
+                    display: flex;
+                    flex-direction: column;
+                    height: 100%;
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    right: 0;
+                    bottom: 0;
+                    z-index: 100;
+                    background: #fff;
+                }
+                .vs-preview-header {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    padding: 12px 16px;
+                    background: #0066cc;
+                    color: white;
+                    font-weight: bold;
+                }
+                .back-btn {
+                    background: rgba(255,255,255,0.2);
+                    border: none;
+                    color: white;
+                    padding: 6px 12px;
+                    border-radius: 20px;
+                    cursor: pointer;
+                }
+                .vs-preview-area {
+                    flex: 1;
+                    background: #f5f5f5;
+                }
+                
                 /* ダークモード */
                 body.dark-mode .vs-header {
                     background: #1e293b;
@@ -199,87 +341,23 @@
                 body.dark-mode .version-item:hover {
                     background: #1e293b;
                 }
-                body.dark-mode .version-item.active {
-                    background: #2d3a4e;
-                }
                 body.dark-mode .version-desc {
                     color: #60a5fa;
                 }
                 body.dark-mode .version-date {
                     color: #64748b;
                 }
-                body.dark-mode .preview-btn {
-                    background: #3b82f6;
-                }
-                body.dark-mode .preview-btn:hover {
-                    background: #2563eb;
-                }
                 body.dark-mode .vs-preview {
                     background: #0f172a;
                 }
-                body.dark-mode .vs-placeholder {
-                    color: #64748b;
+                body.dark-mode .vs-mobile-preview-full {
+                    background: #0f172a;
                 }
-                /* スマホ対応 */
-                @media (max-width: 768px) {
-                    .vs-main {
-                        flex-direction: column;
-                    }
-                    .vs-list {
-                        width: 100%;
-                        max-height: 300px;
-                        border-right: none;
-                        border-bottom: 1px solid #ddd;
-                    }
-                    .vs-preview {
-                        min-height: 400px;
-                    }
+                body.dark-mode .vs-preview-header {
+                    background: #1e293b;
                 }
             `;
             container.appendChild(style);
-
-            // プレビュー表示関数
-            const showPreview = (versionItem) => {
-                const url = versionItem.dataset.url;
-                const version = versionItem.dataset.version;
-                const previewArea = document.querySelector('.vs-preview');
-                
-                // アクティブ表示を更新
-                document.querySelectorAll('.version-item').forEach(item => {
-                    item.classList.remove('active');
-                });
-                versionItem.classList.add('active');
-                
-                // 以前のiframeを削除
-                if (this.currentIframe) {
-                    this.currentIframe.remove();
-                }
-                
-                // 新しいiframeを作成
-                const iframe = document.createElement('iframe');
-                iframe.src = url;
-                iframe.className = 'vs-iframe';
-                iframe.title = `傭兵ツール ${version}`;
-                
-                previewArea.innerHTML = '';
-                previewArea.appendChild(iframe);
-                this.currentIframe = iframe;
-                this.activeVersion = version;
-            };
-
-            // イベント設定
-            document.querySelectorAll('.version-item').forEach(item => {
-                const previewBtn = item.querySelector('.preview-btn');
-                
-                previewBtn.onclick = (e) => {
-                    e.stopPropagation();
-                    showPreview(item);
-                };
-                
-                item.onclick = () => {
-                    showPreview(item);
-                };
-            });
         },
 
         destroy: function() {
