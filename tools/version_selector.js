@@ -11,19 +11,20 @@
 
     let currentIframe = null;
     let isPreviewMode = false;
+    let selectedUrl = '';
+    let containerSelector = '';
 
     const VersionSelector = {
-        render: function(containerSelector) {
-            const container = document.querySelector(containerSelector);
+        render: function(selector) {
+            containerSelector = selector;
+            const container = document.querySelector(selector);
             if (!container) return;
 
             const isMobile = window.innerWidth <= 768;
 
             if (!isMobile) {
-                // ===== PC =====
                 this.renderPc(container);
             } else {
-                // ===== スマホ =====
                 if (!isPreviewMode) {
                     this.renderMobileList(container);
                 } else {
@@ -63,13 +64,12 @@
             // イベント設定
             document.querySelectorAll('.version-item').forEach(item => {
                 const url = item.dataset.url;
-                const version = item.dataset.version;
                 const btn = item.querySelector('.preview-btn');
-
+                
                 const selectVersion = () => {
-                    // プレビュー画面に切り替え（リストは消える）
+                    selectedUrl = url;
                     isPreviewMode = true;
-                    this.render(container.id);
+                    this.render(containerSelector);
                 };
 
                 btn.onclick = (e) => {
@@ -83,22 +83,22 @@
         renderMobilePreview: function(container) {
             container.innerHTML = `
                 <div class="vs-mobile-preview">
-                    <div class="preview-header">
-                        <button id="backToListBtn" class="back-btn">← バージョン一覧</button>
-                    </div>
                     <div id="previewArea" class="preview-content"></div>
                 </div>
             `;
 
             this.addStyles(container);
 
-            // 戻るボタン
-            const backBtn = document.getElementById('backToListBtn');
-            if (backBtn) {
-                backBtn.onclick = () => {
-                    isPreviewMode = false;
-                    this.render(container.id);
-                };
+            // iframeを読み込む
+            const previewArea = document.getElementById('previewArea');
+            if (previewArea && selectedUrl) {
+                if (currentIframe) currentIframe.remove();
+                
+                const iframe = document.createElement('iframe');
+                iframe.src = selectedUrl;
+                iframe.style.cssText = 'width:100%;height:100%;border:none;background:white;';
+                previewArea.appendChild(iframe);
+                currentIframe = iframe;
             }
         },
 
@@ -137,10 +137,11 @@
             document.querySelectorAll('.version-item').forEach(item => {
                 const url = item.dataset.url;
                 const btn = item.querySelector('.preview-btn');
-
+                
                 const showPreview = () => {
                     const previewArea = document.getElementById('pcPreviewArea');
                     if (currentIframe) currentIframe.remove();
+                    
                     const iframe = document.createElement('iframe');
                     iframe.src = url;
                     iframe.style.cssText = 'width:100%;height:100%;border:none;background:white;';
@@ -184,10 +185,8 @@
                 .vs-mobile-list .vs-list { width: 100%; border-right: none; flex: 1; }
                 
                 /* スマホ：プレビュー画面 */
-                .vs-mobile-preview { display: flex; flex-direction: column; height: 100%; }
-                .preview-header { padding: 12px 16px; background: #0066cc; }
-                .back-btn { background: rgba(255,255,255,0.2); border: none; color: white; padding: 8px 16px; border-radius: 20px; cursor: pointer; font-size: 14px; }
-                .preview-content { flex: 1; background: white; }
+                .vs-mobile-preview { display: flex; flex-direction: column; height: 100vh; position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 2000; background: white; }
+                .preview-content { flex: 1; background: white; overflow: auto; }
                 
                 /* ダークモード */
                 body.dark-mode .vs-header { background: #1e293b; border-bottom-color: #334155; }
@@ -198,7 +197,7 @@
                 body.dark-mode .version-desc { color: #60a5fa; }
                 body.dark-mode .version-date { color: #64748b; }
                 body.dark-mode .vs-preview-area { background: #0f172a; }
-                body.dark-mode .preview-header { background: #1e293b; }
+                body.dark-mode .vs-mobile-preview { background: #0f172a; }
                 body.dark-mode .preview-content { background: #0f172a; }
             `;
             container.appendChild(style);
@@ -209,6 +208,8 @@
                 currentIframe.remove();
                 currentIframe = null;
             }
+            isPreviewMode = false;
+            selectedUrl = '';
         }
     };
 
