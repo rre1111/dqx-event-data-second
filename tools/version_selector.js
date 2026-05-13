@@ -11,7 +11,6 @@
 
     const VersionSelector = {
         currentIframe: null,
-        isPreviewMode: false,  // スマホでプレビューモードか
 
         render: function(containerSelector) {
             const container = document.querySelector(containerSelector);
@@ -20,18 +19,13 @@
             const isMobile = window.innerWidth <= 768;
 
             if (isMobile) {
-                // ===== スマホ：初期はリスト表示 =====
-                this.renderMobileList(container);
+                this.renderMobile(container);
             } else {
-                // ===== PC：左リスト + 右プレビュー（現状維持）=====
-                this.renderPcLayout(container);
+                this.renderPc(container);
             }
         },
 
-        // スマホ：リスト表示
-        renderMobileList: function(container) {
-            this.isPreviewMode = false;
-            
+        renderMobile: function(container) {
             const versionRows = VERSIONS.map(v => `
                 <div class="version-item" data-url="${v.url}" data-version="${v.version}">
                     <div class="version-info">
@@ -39,85 +33,68 @@
                         ${v.desc ? `<span class="version-desc">${v.desc}</span>` : ''}
                         <div class="version-date">${v.date}</div>
                     </div>
-                    <button class="preview-btn">▶ 選択</button>
+                    <button class="preview-btn">選択</button>
                 </div>
             `).join('');
 
             container.innerHTML = `
-                <div class="vs-mobile-container">
+                <div class="vs-mobile">
                     <div class="vs-header">
                         <h2>📜 傭兵ツール 過去バージョン</h2>
-                        <p>バージョンを選ぶと、画面いっぱいにプレビュー表示されます</p>
+                        <p>バージョンを選ぶとプレビュー表示されます</p>
                     </div>
-                    <div class="vs-list-mobile">
+                    <div class="vs-list">
                         ${versionRows}
                     </div>
                 </div>
             `;
 
-            // スタイル
             this.addStyles(container);
-            
+
             // イベント設定
             document.querySelectorAll('.version-item').forEach(item => {
                 const btn = item.querySelector('.preview-btn');
                 const url = item.dataset.url;
                 const version = item.dataset.version;
-                
-                const selectVersion = () => {
-                    this.switchToFullPreview(container, url, version);
+
+                const showPreview = () => {
+                    // プレビュー全画面表示に切り替え
+                    container.innerHTML = `
+                        <div class="vs-preview-full">
+                            <div class="vs-preview-header">
+                                <span>${version}</span>
+                                <button class="back-btn">← 戻る</button>
+                            </div>
+                            <div class="vs-preview-area"></div>
+                        </div>
+                    `;
+
+                    // iframe表示
+                    const previewArea = document.querySelector('.vs-preview-area');
+                    if (this.currentIframe) this.currentIframe.remove();
+                    const iframe = document.createElement('iframe');
+                    iframe.src = url;
+                    iframe.style.cssText = 'width:100%;height:100%;border:none;background:white;';
+                    previewArea.appendChild(iframe);
+                    this.currentIframe = iframe;
+
+                    // 戻るボタン
+                    document.querySelector('.back-btn').onclick = () => {
+                        this.renderMobile(container);
+                    };
+
+                    this.addStyles(container);
                 };
-                
+
                 btn.onclick = (e) => {
                     e.stopPropagation();
-                    selectVersion();
+                    showPreview();
                 };
-                item.onclick = selectVersion;
+                item.onclick = showPreview;
             });
         },
 
-        // スマホ：プレビュー全画面表示
-        switchToFullPreview: function(container, url, version) {
-            this.isPreviewMode = true;
-            
-            // 以前のiframeを削除
-            if (this.currentIframe) {
-                this.currentIframe.remove();
-            }
-            
-            // プレビュー専用レイアウトに切り替え（ヘッダー＋プレビューのみ）
-            container.innerHTML = `
-                <div class="vs-mobile-preview-full">
-                    <div class="vs-preview-header">
-                        <span>📜 ${version}</span>
-                        <button id="backToListBtn" class="back-btn">← 戻る</button>
-                    </div>
-                    <div id="fullPreviewArea" class="vs-preview-area"></div>
-                </div>
-            `;
-            
-            // iframe作成
-            const previewArea = document.getElementById('fullPreviewArea');
-            const iframe = document.createElement('iframe');
-            iframe.src = url;
-            iframe.style.cssText = 'width:100%;height:100%;border:none;background:white;';
-            previewArea.appendChild(iframe);
-            this.currentIframe = iframe;
-            
-            // 戻るボタン
-            const backBtn = document.getElementById('backToListBtn');
-            if (backBtn) {
-                backBtn.onclick = () => {
-                    this.renderMobileList(container);
-                };
-            }
-            
-            // スタイル再適用
-            this.addStyles(container);
-        },
-
-        // PC：現状維持のレイアウト
-        renderPcLayout: function(container) {
+        renderPc: function(container) {
             const versionRows = VERSIONS.map(v => `
                 <div class="version-item" data-url="${v.url}" data-version="${v.version}">
                     <div class="version-info">
@@ -125,47 +102,46 @@
                         ${v.desc ? `<span class="version-desc">${v.desc}</span>` : ''}
                         <div class="version-date">${v.date}</div>
                     </div>
-                    <button class="preview-btn">📺 プレビュー</button>
+                    <button class="preview-btn">プレビュー</button>
                 </div>
             `).join('');
 
             container.innerHTML = `
-                <div class="vs-container">
+                <div class="vs-pc">
                     <div class="vs-header">
                         <h2>📜 傭兵ツール 過去バージョン</h2>
-                        <p>バージョンを選択すると、右側のフレームでプレビューできます。</p>
+                        <p>バージョンを選択すると右側に表示されます</p>
                     </div>
                     <div class="vs-main">
                         <div class="vs-list">
                             ${versionRows}
                         </div>
-                        <div class="vs-preview">
-                            <div class="vs-placeholder">左のリストからバージョンを選んでください</div>
+                        <div class="vs-preview-area">
+                            <div class="vs-placeholder">左からバージョンを選んでください</div>
                         </div>
                     </div>
                 </div>
             `;
 
             this.addStyles(container);
-            
+
             // PC用イベント
             document.querySelectorAll('.version-item').forEach(item => {
                 const btn = item.querySelector('.preview-btn');
                 const url = item.dataset.url;
                 const version = item.dataset.version;
-                
+
                 const showPreview = () => {
-                    const previewArea = document.querySelector('.vs-preview');
+                    const previewArea = document.querySelector('.vs-preview-area');
                     if (this.currentIframe) this.currentIframe.remove();
                     const iframe = document.createElement('iframe');
                     iframe.src = url;
-                    iframe.className = 'vs-iframe';
-                    iframe.title = `傭兵ツール ${version}`;
+                    iframe.style.cssText = 'width:100%;height:100%;border:none;background:white;';
                     previewArea.innerHTML = '';
                     previewArea.appendChild(iframe);
                     this.currentIframe = iframe;
                 };
-                
+
                 btn.onclick = (e) => {
                     e.stopPropagation();
                     showPreview();
@@ -175,19 +151,18 @@
         },
 
         addStyles: function(container) {
-            // 既存のスタイルを削除して再追加（重複防止）
-            const oldStyle = container.querySelector('#vs-styles');
+            const oldStyle = document.getElementById('vs-styles');
             if (oldStyle) oldStyle.remove();
-            
+
             const style = document.createElement('style');
             style.id = 'vs-styles';
             style.textContent = `
-                /* ===== PC用スタイル ===== */
-                .vs-container {
+                /* PC用 */
+                .vs-pc {
                     display: flex;
                     flex-direction: column;
                     height: 100%;
-                    min-height: 600px;
+                    min-height: 500px;
                 }
                 .vs-header {
                     padding: 16px;
@@ -206,13 +181,11 @@
                 .vs-main {
                     display: flex;
                     flex: 1;
-                    min-height: 500px;
                 }
                 .vs-list {
-                    width: 280px;
+                    width: 260px;
                     border-right: 1px solid #ddd;
                     overflow-y: auto;
-                    background: #fff;
                 }
                 .version-item {
                     display: flex;
@@ -221,7 +194,6 @@
                     padding: 12px;
                     border-bottom: 1px solid #eee;
                     cursor: pointer;
-                    transition: background 0.2s;
                 }
                 .version-item:hover {
                     background: #f0f7ff;
@@ -246,12 +218,8 @@
                     padding: 6px 14px;
                     border-radius: 20px;
                     cursor: pointer;
-                    font-size: 11px;
                 }
-                .preview-btn:hover {
-                    background: #0055aa;
-                }
-                .vs-preview {
+                .vs-preview-area {
                     flex: 1;
                     background: #f5f5f5;
                     position: relative;
@@ -263,43 +231,28 @@
                     height: 100%;
                     color: #999;
                 }
-                .vs-iframe {
+                
+                /* スマホ用 */
+                .vs-mobile {
+                    display: flex;
+                    flex-direction: column;
+                    height: 100%;
+                }
+                .vs-mobile .vs-list {
                     width: 100%;
-                    height: 100%;
-                    border: none;
-                    background: white;
-                }
-                
-                /* ===== スマホ用スタイル ===== */
-                .vs-mobile-container {
-                    display: flex;
-                    flex-direction: column;
-                    height: 100%;
-                }
-                .vs-list-mobile {
+                    border-right: none;
                     flex: 1;
-                    overflow-y: auto;
                 }
-                .vs-mobile-container .version-item {
-                    padding: 14px;
-                }
-                .vs-mobile-container .preview-btn {
-                    padding: 8px 16px;
-                    font-size: 13px;
-                }
-                
-                /* スマホ：プレビュー全画面 */
-                .vs-mobile-preview-full {
-                    display: flex;
-                    flex-direction: column;
-                    height: 100%;
+                .vs-preview-full {
                     position: fixed;
                     top: 0;
                     left: 0;
                     right: 0;
                     bottom: 0;
-                    z-index: 100;
-                    background: #fff;
+                    background: white;
+                    z-index: 1000;
+                    display: flex;
+                    flex-direction: column;
                 }
                 .vs-preview-header {
                     display: flex;
@@ -308,7 +261,6 @@
                     padding: 12px 16px;
                     background: #0066cc;
                     color: white;
-                    font-weight: bold;
                 }
                 .back-btn {
                     background: rgba(255,255,255,0.2);
@@ -318,9 +270,8 @@
                     border-radius: 20px;
                     cursor: pointer;
                 }
-                .vs-preview-area {
+                .vs-preview-full .vs-preview-area {
                     flex: 1;
-                    background: #f5f5f5;
                 }
                 
                 /* ダークモード */
@@ -347,10 +298,10 @@
                 body.dark-mode .version-date {
                     color: #64748b;
                 }
-                body.dark-mode .vs-preview {
+                body.dark-mode .vs-preview-area {
                     background: #0f172a;
                 }
-                body.dark-mode .vs-mobile-preview-full {
+                body.dark-mode .vs-preview-full {
                     background: #0f172a;
                 }
                 body.dark-mode .vs-preview-header {
