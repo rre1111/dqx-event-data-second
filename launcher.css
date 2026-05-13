@@ -257,7 +257,8 @@ body.dark-mode .tool-menu-bottom {
 @media (max-width: 768px) {
     .home-grid {
         grid-template-columns: repeat(3, minmax(0, 1fr));
-        gap: 10px;
+        column-gap: 10px;
+        row-gap: 6px;
         margin-bottom: 20px;
     }
     
