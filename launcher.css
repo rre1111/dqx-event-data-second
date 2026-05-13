@@ -266,6 +266,7 @@ body.dark-mode .tool-menu-bottom {
     .tool-card {
         padding: 10px 6px;
         gap: 4px;
+        min-height: 120px;
     }
     
     .tool-card-icon {
