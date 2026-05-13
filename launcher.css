@@ -262,8 +262,7 @@ body.dark-mode .tool-menu-bottom {
     }
     
     .tool-card {
-        aspect-ratio: 1 / 1.1;
-        padding: 8px 4px;
+        padding: 10px 6px;
         gap: 4px;
     }
     
