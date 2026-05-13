@@ -255,10 +255,14 @@ body.dark-mode .tool-menu-bottom {
 
 /* ----- レスポンシブ調整（スマホ:3列＋折り返し許可＋説明文表示） ----- */
 @media (max-width: 768px) {
+    .home-container {
+        padding: 20px 12px 40px;
+    }
+    
     .home-grid {
         grid-template-columns: repeat(3, 1fr);
-        column-gap: 10px;
-        row-gap: 10px;
+        column-gap: 8px;
+        row-gap: 8px;
         margin-bottom: 20px;
     }
     
