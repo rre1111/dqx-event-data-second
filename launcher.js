@@ -1,6 +1,6 @@
 // ==========ツールランチャー（改造版）=========
 // ========== バージョン管理 ==========
-const APP_VERSION = '20260516';
+const APP_VERSION = '20260517';
 
 function checkVersionUpdate() {
     const storedVersion = localStorage.getItem('dqx_app_version');
