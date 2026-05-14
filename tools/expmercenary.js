@@ -514,6 +514,14 @@
   .c{max-width:none;width:100%;margin:0;padding:0;background:transparent;border:none;border-radius:0;font-family:sans-serif;color:#333;line-height:1.25}
   select,input,button{font-family:inherit}
   .h{display:flex;align-items:center;padding:6px 4px;border-bottom:1px solid #eee;font-size:12px;white-space:nowrap;gap:4px}
+  /* ボタンスタイル */
+  .btn-primary{background:#0066cc;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:bold;box-shadow:0 2px 4px rgba(0,0,0,0.2)}
+  .btn-danger{background:#e74c3c;color:#fff;border:none;border-radius:4px;font-weight:bold;cursor:pointer}
+  .btn-info{background:#3498db;color:#fff;border:none;border-radius:4px;font-weight:bold;cursor:pointer}
+  .btn-warning{background:#fff1f0;border:1px solid #ffa39e;color:#cf1322;border-radius:4px;font-weight:bold;cursor:pointer}
+  .btn-teal{background:#00bcd4;color:#fff;border:none;border-radius:4px;font-weight:bold;cursor:pointer}
+  /* パネル背景 */
+  .panel-bg{background:#f9f9f9;border:1px solid #eee;border-radius:6px}
   /* 行内セレクト */
   .rs,.cs{font-size:12px!important;padding:2px 4px!important;min-width:52px}
   .rs{flex:1.45!important}
@@ -542,6 +550,10 @@
   #ms,#pb,#cn,.rs,.cs{border-color:#7ab8ff!important}
   /* タイマー停止ボタン */
   #btnTimerStop{background:#008888!important;color:#fff!important;border:1px solid #00aaaa!important;border-radius:4px;cursor:pointer;font-weight:bold;padding:2px}
+  /* 履歴コピーボタン */
+  .btn-copy{background:#008888!important;color:#fff!important;border:none!important;border-radius:6px;cursor:pointer;font-weight:bold;display:flex;align-items:center;justify-content:center;padding:4px 8px;font-size:12px}
+  /* OCリセットボタン */
+  .btn-oc{background:#fff1f0!important;border:1px solid #ffa39e!important;color:#cf1322!important;border-radius:4px;padding:6px 12px;font-size:12px;cursor:pointer;margin-right:8px}
   /* ダークモード */
   body.dark-mode{background:#0a0a0f}
   body.dark-mode .c{background:#1a1a2a;color:#e8e8f0}
@@ -555,9 +567,16 @@
   body.dark-mode #totalExpDisplay{color:#fff!important}
   body.dark-mode #timer-row{background:#2a2f45!important}
   body.dark-mode label{color:#e8e8f0!important}
+  body.dark-mode .btn-primary{background:#1a6eaa!important;color:#fff!important;border:1px solid #3399cc!important}
+  body.dark-mode .btn-danger{background:#aa3333!important;color:#fff!important;border:1px solid #cc5555!important}
+  body.dark-mode .btn-info{background:#1a77aa!important;color:#fff!important;border:1px solid #3399cc!important}
+  body.dark-mode .btn-warning{background:#2a1515!important;border:1px solid #883333!important;color:#cc7777!important}
+  body.dark-mode .btn-teal{background:#1a8899!important;color:#fff!important;border:1px solid #33aabb!important}
   body.dark-mode .passbook-area{background:#1e2a44!important}
   body.dark-mode .passbook-buttons button{background:#1a73e8!important}
   body.dark-mode #btnTimerStop{background:#006666!important;border:1px solid #008888!important}
+  body.dark-mode .btn-copy{background:#006666!important}
+  body.dark-mode .btn-oc{background:#2a1515!important;border:1px solid #883333!important;color:#cc7777!important}
   body.dark-mode #ms,body.dark-mode #pb,body.dark-mode #cn,body.dark-mode .rs,body.dark-mode .cs{border-color:#7ab8ff!important}
   body.dark-mode [style*="background: #f0f7ff"],body.dark-mode [style*="background:#f0f7ff"],body.dark-mode #ms{background-color:#2a2f45!important}
   body.dark-mode #ms,body.dark-mode #currentExpDisplay,body.dark-mode #pob div{color:#5a9eff!important}
