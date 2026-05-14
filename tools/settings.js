@@ -40,11 +40,7 @@
                     <div class="settings-card">
                         <h3>ℹ️ このツールについて</h3>
                         <p>DQXツールセット - 製作:yuffy_rre</p>
-                        <p>バージョン: <span id="app-version-display"></span></p>
-<script>
-    document.getElementById('app-version-display').textContent = 
-        typeof LAUNCHER_VERSION !== 'undefined' ? LAUNCHER_VERSION : 'unknown';
-</script>
+                        <p>バージョン: ${window.LAUNCHER_VERSION || '2.1.2'}</p>
                     </div>
                 </div>
             `;
