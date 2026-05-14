@@ -72,6 +72,24 @@
         }
     </style>
     <script>
+        // HTML側のバージョン（手動更新・ランチャーと合わせる）
+        const HTML_VERSION = '20260515';
+
+        // ランチャー読み込み後の整合性チェック
+        window.addEventListener('load', function() {
+            setTimeout(function() {
+                if (typeof window.LAUNCHER_VERSION !== 'undefined') {
+                    if (window.LAUNCHER_VERSION !== HTML_VERSION) {
+                        alert('バージョン情報が一致しません。再読み込みします。');
+                        location.reload(true);
+                    }
+                } else {
+                    alert('ランチャーの読み込みに失敗しました。再読み込みします。');
+                    location.reload(true);
+                }
+            }, 500);
+        });
+
         // ★修正⑤: skipMaintenance を urlParams から取得するよう修正（未定義エラー解消）
         const urlParams = new URLSearchParams(window.location.search);
         const skipMaintenance = urlParams.get('skip') === 'maintenance';
