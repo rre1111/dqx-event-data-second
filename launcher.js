@@ -1,6 +1,9 @@
 // ==========ツールランチャー（改造版）=========
 // ========== バージョン管理 ==========
-const APP_VERSION = '20260517';
+const APP_VERSION = '20260515';
+
+// バージョン情報をグローバルに公開（HTML側と整合性チェック用）
+window.LAUNCHER_VERSION = APP_VERSION;
 
 function checkVersionUpdate() {
     const storedVersion = localStorage.getItem('dqx_app_version');
