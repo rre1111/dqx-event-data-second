@@ -1,4 +1,18 @@
 // ==========ツールランチャー（改造版）=========
+// ========== バージョン管理 ==========
+const APP_VERSION = '20260515';
+
+function checkVersionUpdate() {
+    const storedVersion = localStorage.getItem('dqx_app_version');
+    if (storedVersion !== APP_VERSION) {
+        if (storedVersion) {
+            alert(`🎉 アップデート完了！\n\n${storedVersion} → ${APP_VERSION}\n新機能・修正が含まれています。`);
+        } else {
+            alert(`✨ ようこそ！\n\nDQXツール ver.${APP_VERSION} が起動しました。`);
+        }
+        localStorage.setItem('dqx_app_version', APP_VERSION);
+    }
+}
 
 const DQXTools = {
     tools: {},
@@ -17,6 +31,7 @@ const DQXTools = {
 
     // ----- 初期化（変更なし）-----
     init: function(containerId) {
+        checkVersionUpdate();
         this.container = document.getElementById(containerId);
         if (!this.container) {
             console.error('コンテナが見つかりません:', containerId);
@@ -92,7 +107,7 @@ const DQXTools = {
 
         document.querySelectorAll('.tool-card').forEach(card => {
             card.onclick = () => {
-                const toolId = card.dataset.toolId;  // ★修正①: ハイフンなしのcamelCase
+                const toolId = card.dataset.toolId;
                 this.loadTool(toolId);
             };
         });
@@ -133,7 +148,6 @@ const DQXTools = {
             }
         }
 
-        // ★修正②: dataset.toolId（camelCase）に統一
         document.querySelectorAll('.tool-menu-btn').forEach(btn => {
             btn.onclick = () => {
                 const toolId = btn.dataset.toolId;
@@ -146,27 +160,25 @@ const DQXTools = {
         this.addDarkModeButtonToMenu();
     },
 
-// ==================== メニュー内にホーム・ダークモードボタンを追加 ====================
-addDarkModeButtonToMenu: function() {
-    const menuBar = document.getElementById('tool-menu-bar');
-    if (!menuBar) return;
+    // ==================== メニュー内にホーム・ダークモードボタンを追加 ====================
+    addDarkModeButtonToMenu: function() {
+        const menuBar = document.getElementById('tool-menu-bar');
+        if (!menuBar) return;
 
-    // ホームに戻るボタン
-    const homeBtn = document.createElement('button');
-    homeBtn.className = 'tool-menu-btn home-btn';
-    homeBtn.innerHTML = '🏠<span class="menu-btn-label">ホーム</span>';
-    homeBtn.onclick = () => this.goHome();
-    menuBar.appendChild(homeBtn);
+        const homeBtn = document.createElement('button');
+        homeBtn.className = 'tool-menu-btn home-btn';
+        homeBtn.innerHTML = '🏠<span class="menu-btn-label">ホーム</span>';
+        homeBtn.onclick = () => this.goHome();
+        menuBar.appendChild(homeBtn);
 
-    // ダークモードボタン
-    const darkBtn = document.createElement('button');
-    darkBtn.className = 'tool-menu-btn dark-mode-btn';
-    darkBtn.innerHTML = this.darkMode
-        ? '☀️<span class="menu-btn-label">ライト</span>'
-        : '🌙<span class="menu-btn-label">ダーク</span>';
-    darkBtn.onclick = () => this.toggleDarkMode();
-    menuBar.appendChild(darkBtn);
-},
+        const darkBtn = document.createElement('button');
+        darkBtn.className = 'tool-menu-btn dark-mode-btn';
+        darkBtn.innerHTML = this.darkMode
+            ? '☀️<span class="menu-btn-label">ライト</span>'
+            : '🌙<span class="menu-btn-label">ダーク</span>';
+        darkBtn.onclick = () => this.toggleDarkMode();
+        menuBar.appendChild(darkBtn);
+    },
 
     // ==================== ツール読み込み ====================
     loadTool: async function(toolId) {
@@ -184,7 +196,6 @@ addDarkModeButtonToMenu: function() {
 
         this.destroyCurrentTool();
 
-        // ★修正③: 二重宣言を削除。コンテナを作り直す処理を一本化
         const oldContainer = document.getElementById('dqx-tool-container');
         if (oldContainer) oldContainer.remove();
 
@@ -238,7 +249,7 @@ addDarkModeButtonToMenu: function() {
         await new Promise(resolve => setTimeout(resolve, 1500));
 
         try {
-            const oldScript = document.querySelector(`script[src="${tool.url}"]`);
+            const oldScript = document.querySelector(`script[src*="${tool.url.split('/').pop()}"]`);
             if (oldScript) oldScript.remove();
 
             await this.loadScript(tool.url);
@@ -253,7 +264,6 @@ addDarkModeButtonToMenu: function() {
 
             if (typeof fn === 'function') {
                 this.container.innerHTML = '';
-                // ★修正③続き: container をクリアした後に再度コンテナを作成してからrenderFnに渡す
                 const newToolContainer = document.createElement('div');
                 newToolContainer.id = 'dqx-tool-container';
                 this.container.appendChild(newToolContainer);
@@ -294,7 +304,6 @@ addDarkModeButtonToMenu: function() {
         this.showLauncher();
     },
 
-    // ★修正④: destroyCurrentTool のツールID を index.html の登録名に合わせる
     destroyCurrentTool: function() {
         if (this.currentTool) {
             const tool = this.tools[this.currentTool];
@@ -308,14 +317,15 @@ addDarkModeButtonToMenu: function() {
     },
 
     loadScript: function(url) {
+        const cacheBustUrl = url + '?v=' + APP_VERSION;
         return new Promise((resolve, reject) => {
-            const existing = document.querySelector(`script[src="${url}"]`);
+            const existing = document.querySelector(`script[src="${cacheBustUrl}"]`);
             if (existing) {
                 resolve();
                 return;
             }
             const script = document.createElement('script');
-            script.src = url;
+            script.src = cacheBustUrl;
             script.onload  = () => resolve();
             script.onerror = () => reject(new Error(`Script load failed: ${url}`));
             document.head.appendChild(script);
