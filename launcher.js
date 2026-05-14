@@ -1,6 +1,6 @@
 // ==========ツールランチャー（改造版）=========
 // ========== バージョン管理 ==========
-const APP_VERSION = '2.1.4';
+const APP_VERSION = '2.1.5';
 
 // バージョン情報をグローバルに公開（HTML側と整合性チェック用）
 window.LAUNCHER_VERSION = APP_VERSION;
@@ -218,30 +218,18 @@ const DQXTools = {
         let rand = Math.random() * totalWeight;
         const randomImage = loadingImages.find(img => (rand -= img.weight) < 0).src;
 
-        const loadingDiv = document.createElement('div');
+                const loadingDiv = document.createElement('div');
         loadingDiv.id = 'dqx-loading';
-        loadingDiv.style.cssText = `
-            position: fixed;
-            top: 0; left: 0;
-            width: 100%; height: 100%;
-            background: rgba(0, 0, 0, 0.85);
-            backdrop-filter: blur(4px);
-            z-index: 20000;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            flex-direction: column;
-            transition: opacity 0.3s;
-        `;
+        loadingDiv.className = 'loading-overlay';
         loadingDiv.innerHTML = `
-            <div style="text-align: center;">
-                <div style="margin-bottom: 24px;">
-                    <img src="${randomImage}" style="width: 320px; max-width: 80vw; height: auto; opacity: 0.95;" onerror="this.style.display='none'">
+            <div class="loading-content">
+                <div>
+                    <img src="${randomImage}" class="loading-image" onerror="this.style.display='none'">
                 </div>
-                <div id="dqx-loading-text" style="color: white; font-size: 1.3rem; font-weight: bold; margin-bottom: 20px;">
+                <div id="dqx-loading-text" class="loading-text">
                     読み込み中...
                 </div>
-                <div style="color: #aaa; font-size: 0.7rem; max-width: 90%; margin: 0 auto; line-height: 1.5;">
+                <div class="loading-credit">
                     このページで利用している株式会社スクウェア・エニックスを代表とする共同著作者が権利を所有する画像の転載・配布は禁止いたします。<br>
                     (C) ARMOR PROJECT/BIRD STUDIO/SQUARE ENIX All Rights Reserved.
                 </div>
@@ -249,7 +237,7 @@ const DQXTools = {
         `;
         document.body.appendChild(loadingDiv);
 
-        await new Promise(resolve => setTimeout(resolve, 1500));
+        await new Promise(resolve => setTimeout(resolve, 1000));
 
         try {
             const oldScript = document.querySelector(`script[src*="${tool.url.split('/').pop()}"]`);
