@@ -684,4 +684,7 @@ body.dark-mode .dqt-no-left-label{background:#1e293b;color:#94a3b8}
     }
 
     global.DQtool = { render };
+    destroy: function() {
+        // 破棄すべきリソースなし
+    }
 })(window);
