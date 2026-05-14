@@ -1154,6 +1154,11 @@ body { font-family: 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif; background
 .toolbar input[type="text"]  { padding: 5px 8px; font-size: 0.7rem; border: 1px solid #ccc; border-radius: 20px; width: 90px; }
 .toolbar input[type="color"] { width: 32px; height: 30px; border-radius: 20px; cursor: pointer; padding: 1px 2px; border: 1px solid #ccc; }
 .toolbar button { background: #eef2ff; border: none; padding: 5px 12px; border-radius: 30px; font-size: 0.7rem; font-weight: 500; cursor: pointer; }
+.add-btn    { background: #0066cc !important; color: white !important; }
+.edit-btn   { background: #f59e0b !important; color: white !important; }
+.edit-mode-active { background: #10b981 !important; color: white !important; }
+.export-btn { background: #10b981 !important; color: white !important; }
+.import-btn { background: #8b5cf6 !important; color: white !important; }
 
 /* 今日情報カード */
 .today-card { background: #fefce8; border-left: 3px solid #f5a623; margin: 6px 12px; padding: 4px 10px; border-radius: 10px; display: flex; justify-content: space-between; font-size: 0.65rem; flex-wrap: wrap; }
@@ -1226,6 +1231,11 @@ body.dark-mode .toolbar { border-bottom-color: #2a3441; }
 body.dark-mode .toolbar input[type="text"]  { background: #374151; border-color: #4b5563; color: #e5e7eb; }
 body.dark-mode .toolbar input[type="color"] { background: #374151; border-color: #4b5563; }
 body.dark-mode .toolbar button { background: #374151; color: #e5e7eb; }
+body.dark-mode .add-btn    { background: #3399ff !important; }
+body.dark-mode .edit-btn   { background: #f59e0b !important; }
+body.dark-mode .edit-mode-active { background: #10b981 !important; }
+body.dark-mode .export-btn { background: #059669 !important; }
+body.dark-mode .import-btn { background: #7c3aed !important; }
 body.dark-mode .today-card { background: #1f2937; border-left-color: #f59e0b; color: #e5e7eb; }
 body.dark-mode th { background: #1f2937; color: #fff; border-bottom-color: #374151; }
 body.dark-mode td { color: #fff; border-bottom-color: #2a3441; }
