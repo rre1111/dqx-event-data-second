@@ -507,147 +507,104 @@
 
       container.innerHTML = `
 <style>
-  /* ===== ベースリセット ===== */
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   body{margin:0;padding:0}
-  
-  /* ===== メインコンテナ ===== */
   .c{max-width:none;width:100%;margin:0;padding:0;background:transparent;border:none;border-radius:0;font-family:sans-serif;color:#333;line-height:1.25}
   select,input,button{font-family:inherit}
-  
-  /* ===== 履歴行スタイル ===== */
   .h{display:flex;align-items:center;padding:6px 4px;border-bottom:1px solid #eee;font-size:12px;white-space:nowrap;gap:4px}
-  
-  /* ===== ボタンスタイル ===== */
   .btn-primary{background:#0066cc;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:bold;box-shadow:0 2px 4px rgba(0,0,0,0.2)}
   .btn-danger{background:#e74c3c;color:#fff;border:none;border-radius:4px;font-weight:bold;cursor:pointer}
   .btn-info{background:#3498db;color:#fff;border:none;border-radius:4px;font-weight:bold;cursor:pointer}
   .btn-warning{background:#fff1f0;border:1px solid #ffa39e;color:#cf1322;border-radius:4px;font-weight:bold;cursor:pointer}
   .btn-teal{background:#00bcd4;color:#fff;border:none;border-radius:4px;font-weight:bold;cursor:pointer}
-  
-  /* ===== パネル背景 ===== */
   .panel-bg{background:#f9f9f9;border:1px solid #eee;border-radius:6px}
-  
-  /* ===== 行内セレクト ===== */
   .rs,.cs{font-size:12px;padding:2px 4px;min-width:52px}
   .rs{flex:1.45}
   .cs{flex:0.9}
-  
-  /* ===== タブ数字フォント ===== */
   .mono-digit{font-family:'Verdana',system-ui,sans-serif;font-variant-numeric:tabular-nums}
   #timerDisplay,#lapTimeDisplay,#avgTimeDisplay,#passbookExpDisplay,#passbookLimitText{font-family:'Verdana',system-ui,sans-serif;font-variant-numeric:tabular-nums}
   #passbookExpDisplay,#passbookLimitText{font-size:15px;font-weight:bold}
-  
-  /* ===== タイマー行 ===== */
   .timer-row{background:#f8f9fc;border-radius:6px;padding:6px 8px;margin-bottom:6px}
-  
-  /* ===== ラベル ===== */
   label{color:#000}
-  
-  /* ===== テキストカラー ===== */
   .text-orange{color:#f39c12}
   .text-green{color:#27ae60}
   .text-cyan{color:#2cc9ff}
   .text-red{color:#e74c3c}
-  
-  /* ===== 同期表示 ===== */
   .sync-small{font-size:9px;color:#888;text-align:right;height:14px;line-height:14px}
-  
-  /* ===== LAP表示 ===== */
   .lap-display{font-size:18px;font-weight:bold;color:#2cc9ff;line-height:24px}
   .timer-right{text-align:right}
-  
-  /* ===== デスペナ表示 ===== */
   .penalty-ref{font-size:11px;color:#ff6666;margin-top:4px;white-space:pre-line}
-  
-  /* ===== 通帳エリア ===== */
   .passbook-area{background:#f0f7ff;border-radius:6px;padding:4px 8px;display:flex;flex-direction:column;gap:3px}
   .passbook-area.hidden{display:none}
   .passbook-info{font-size:13px;text-align:center;font-weight:bold}
   .passbook-buttons{display:flex;gap:6px;justify-content:center}
   .passbook-buttons button{background:#06c;color:#fff;border:none;border-radius:4px;padding:3px 8px;font-size:11px;cursor:pointer;flex:1}
-  
-  /* ===== モンスターセレクト ===== */
   #ms{text-align:center}
-  
-  /* ===== 入力フィールドのボーダー色統一 ===== */
   #ms,#pb,#cn,.rs,.cs{border-color:#7ab8ff}
-  
-  /* ===== タイマー停止ボタン ===== */
   #btnTimerStop{background:#008888;color:#fff;border:1px solid #00aaaa;border-radius:4px;cursor:pointer;font-weight:bold;padding:2px}
-  
-  /* ===== 履歴コピーボタン ===== */
   .btn-copy{background:#008888;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:bold;display:flex;align-items:center;justify-content:center;padding:4px 8px;font-size:12px}
-  
-  /* ===== OCリセットボタン ===== */
   .btn-oc{background:#fff1f0;border:1px solid #ffa39e;color:#cf1322;border-radius:4px;padding:6px 12px;font-size:12px;cursor:pointer;margin-right:8px}
   
-  /* ===== 行IDスタイル ===== */
+  /* 行内クラス */
   .row-id-lap{color:#2cc9ff;font-weight:bold;width:26px;font-size:10px}
   .row-id-normal{color:#999;width:26px;font-size:10px}
-  
-  /* ===== タイムセル ===== */
   .time-cell{font-family:'Verdana',system-ui,sans-serif;font-variant-numeric:tabular-nums;width:65px}
   .time-main{font-size:11px;font-weight:bold}
   .time-lap{color:#2cc9ff;font-size:10px}
-  
-  /* ===== 経験値セル ===== */
   .exp-cell{width:95px}
   .exp-cell-lap{width:95px;color:#aaa;font-size:10px}
   .exp-value{font-size:13px;min-width:62px;text-align:right;font-family:'Verdana',system-ui,sans-serif;font-variant-numeric:tabular-nums}
   .exp-label{font-size:10px}
-  
-  /* ===== デスペナラベル ===== */
   .desp-label{margin:0 2px;display:inline-flex;align-items:center}
   .desp-icon{font-size:9px}
-  
-  /* ===== 行コントロール ===== */
+  .del{border:none;background:none;color:#aaa;cursor:pointer;font-size:19px;padding:0 4px}
   .row-controls{display:flex;gap:3px;flex:1}
   .row-controls-placeholder{flex:1;color:#aaa;text-align:center;font-size:10px}
   
-  /* ===== 削除ボタン ===== */
-  .del{border:none;background:none;color:#aaa;cursor:pointer;font-size:19px;padding:0 4px}
-  
-  /* ===== ダークモード ===== */
+  /* ===== ダークモード（!important を使用して確実に上書き） ===== */
   body.dark-mode{background:#0a0a0f}
-  body.dark-mode .c{background:#1a1a2a;color:#e8e8f0}
-  body.dark-mode select,body.dark-mode input,body.dark-mode button{background:#2a2a3a;color:#e8e8f0}
-  body.dark-mode .h{border-bottom-color:#2a2a3a}
-  body.dark-mode .panel-bg{background:#0f0f17;border-color:#2a2a3a}
-  body.dark-mode #currentExpDisplay{color:#5a9eff}
-  body.dark-mode .text-orange{color:#ffaa66}
-  body.dark-mode .text-green{color:#66ffaa}
-  body.dark-mode .text-red{color:#ff8888}
-  body.dark-mode #totalExpDisplay{color:#fff}
-  body.dark-mode .timer-row{background:#2a2f45}
-  body.dark-mode label{color:#e8e8f0}
-  body.dark-mode .btn-primary{background:#1a6eaa;color:#fff;border:1px solid #3399cc}
-  body.dark-mode .btn-danger{background:#aa3333;color:#fff;border:1px solid #cc5555}
-  body.dark-mode .btn-info{background:#1a77aa;color:#fff;border:1px solid #3399cc}
-  body.dark-mode .btn-warning{background:#2a1515;border:1px solid #883333;color:#cc7777}
-  body.dark-mode .btn-teal{background:#1a8899;color:#fff;border:1px solid #33aabb}
-  body.dark-mode .passbook-area{background:#1e2a44}
-  body.dark-mode .passbook-buttons button{background:#1a73e8}
-  body.dark-mode #btnTimerStop{background:#006666;border:1px solid #008888}
-  body.dark-mode .btn-copy{background:#006666}
-  body.dark-mode .btn-oc{background:#2a1515;border:1px solid #883333;color:#cc7777}
-  body.dark-mode #ms,body.dark-mode #pb,body.dark-mode #cn,body.dark-mode .rs,body.dark-mode .cs{border-color:#7ab8ff}
-  body.dark-mode [style*="background: #f0f7ff"],body.dark-mode [style*="background:#f0f7ff"],body.dark-mode #ms{background-color:#2a2f45}
-  body.dark-mode #ms,body.dark-mode #currentExpDisplay,body.dark-mode #pob div{color:#5a9eff}
-  body.dark-mode #overflowDisplay{color:#888}
-  body.dark-mode #timerDisplay{color:#e8e8f0}
-  body.dark-mode #estimatedReward{background:#2a2f45;color:#e8e8f0}
-  body.dark-mode #rowHistory{border-top-color:#2a2a3a;background:#1a1a2a}
-  body.dark-mode .sync-small{color:#aaa}
-  body.dark-mode .penalty-ref{color:#ff8888}
-  body.dark-mode [style*="border-top:1px solid #ddd"]{border-top-color:#2a2a3a}
-  body.dark-mode [style*="color:#666"]{color:#aaa}
+  body.dark-mode .c{background:#1a1a2a !important;color:#e8e8f0 !important}
+  body.dark-mode select,body.dark-mode input,body.dark-mode button{background:#2a2a3a !important;color:#e8e8f0 !important}
+  body.dark-mode .h{border-bottom-color:#2a2a3a !important}
+  body.dark-mode .panel-bg{background:#0f0f17 !important;border-color:#2a2a3a !important}
+  body.dark-mode #currentExpDisplay{color:#5a9eff !important}
+  body.dark-mode .text-orange{color:#ffaa66 !important}
+  body.dark-mode .text-green{color:#66ffaa !important}
+  body.dark-mode .text-red{color:#ff8888 !important}
+  body.dark-mode #totalExpDisplay{color:#fff !important}
+  body.dark-mode .timer-row{background:#2a2f45 !important}
+  body.dark-mode label{color:#e8e8f0 !important}
+  body.dark-mode .btn-primary{background:#1a6eaa !important;color:#fff !important;border:1px solid #3399cc !important}
+  body.dark-mode .btn-danger{background:#aa3333 !important;color:#fff !important;border:1px solid #cc5555 !important}
+  body.dark-mode .btn-info{background:#1a77aa !important;color:#fff !important;border:1px solid #3399cc !important}
+  body.dark-mode .btn-warning{background:#2a1515 !important;border:1px solid #883333 !important;color:#cc7777 !important}
+  body.dark-mode .btn-teal{background:#1a8899 !important;color:#fff !important;border:1px solid #33aabb !important}
+  body.dark-mode .passbook-area{background:#1e2a44 !important}
+  body.dark-mode .passbook-buttons button{background:#1a73e8 !important}
+  body.dark-mode #btnTimerStop{background:#006666 !important;border:1px solid #008888 !important}
+  body.dark-mode .btn-copy{background:#006666 !important}
+  body.dark-mode .btn-oc{background:#2a1515 !important;border:1px solid #883333 !important;color:#cc7777 !important}
+  body.dark-mode #ms,body.dark-mode #pb,body.dark-mode #cn,body.dark-mode .rs,body.dark-mode .cs{border-color:#7ab8ff !important}
+  body.dark-mode #ms{background-color:#2a2f45 !important}
+  body.dark-mode #ms,body.dark-mode #currentExpDisplay,body.dark-mode #pob div{color:#5a9eff !important}
+  body.dark-mode #overflowDisplay{color:#888 !important}
+  body.dark-mode #timerDisplay{color:#e8e8f0 !important}
+  body.dark-mode #estimatedReward{background:#2a2f45 !important;color:#e8e8f0 !important}
+  body.dark-mode #rowHistory{border-top-color:#2a2a3a !important;background:#1a1a2a !important}
+  body.dark-mode .sync-small{color:#aaa !important}
+  body.dark-mode .penalty-ref{color:#ff8888 !important}
+  body.dark-mode .exp-cell-lap{color:#aaa !important}
+  body.dark-mode .row-id-normal{color:#aaa !important}
+  body.dark-mode .row-id-lap{color:#2cc9ff !important}
+  body.dark-mode .time-lap{color:#2cc9ff !important}
+  body.dark-mode .row-controls-placeholder{color:#aaa !important}
+  body.dark-mode .del{color:#aaa !important}
 </style>
 
 <div class="c">
 
   <!-- モンスター選択・通帳選択 -->
-  <div class="flex-row" style="display:flex;gap:6px;margin-bottom:8px">
+  <div style="display:flex;gap:6px;margin-bottom:8px">
     <select id="ms" style="flex:2;padding:6px;font-size:15px;border:1px solid #7ab8ff;border-radius:4px;font-weight:bold;background:#f0f7ff">
       <option value="returner"      data-base="13118" data-bonus="0">リターナーモア</option>
       <option value="durahan"       data-base="22802" data-bonus="4561" selected>デュラハーン</option>
@@ -665,15 +622,15 @@
 
   <!-- 経験値表示・最適ボタン・討伐数選択 -->
   <div style="display:flex;gap:4px;margin-bottom:8px">
-    <div class="exp-display-box" style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#f0f7ff;border:1px solid #7ab8ff;border-radius:6px;padding:4px">
+    <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#f0f7ff;border:1px solid #7ab8ff;border-radius:6px;padding:4px">
       <span id="currentExpDisplay" style="font-size:22px;font-weight:bold;color:#06c">0</span>
       <span id="overflowDisplay" style="font-size:9px;color:#999;margin-top:2px;visibility:hidden">溢れ:0</span>
     </div>
-    <div id="pob" class="optimal-button" style="width:46px;cursor:pointer;background:#f0f7ff;border:1px solid #7ab8ff;border-radius:6px;text-align:center;display:flex;flex-direction:column;align-items:center;justify-content:center">
+    <div id="pob" style="width:46px;cursor:pointer;background:#f0f7ff;border:1px solid #7ab8ff;border-radius:6px;text-align:center;display:flex;flex-direction:column;align-items:center;justify-content:center">
       <div style="font-size:8px;color:#06c">最適</div>
       <div style="font-size:13px;font-weight:bold;color:#06c">+1</div>
     </div>
-    <div class="call-count-box" style="width:60px">
+    <div style="width:60px">
       <div style="font-size:7px;color:#666;text-align:center">討伐数</div>
       <select id="cn" style="width:100%;padding:2px;font-size:18px;font-weight:bold;border:1px solid #7ab8ff;border-radius:4px;text-align:center">
         <option value="1">A</option><option value="2">B</option><option value="3">C</option>
@@ -686,7 +643,7 @@
 
   <!-- バフ設定・タイマー開始ボタン -->
   <div id="timer-row" class="timer-row" style="padding:6px 8px;margin-bottom:8px;display:flex;gap:6px">
-    <div class="buff-settings" style="flex:1;font-size:12px;display:flex;flex-direction:column;align-items:flex-end;padding-right:50px;justify-content:center">
+    <div style="flex:1;font-size:12px;display:flex;flex-direction:column;align-items:flex-end;padding-right:50px;justify-content:center">
       <!-- エリクサー選択 -->
       <div style="margin-bottom:3px;display:flex;gap:8px">
         <label><input name="e_exp" type="radio" value="none" />無</label>
@@ -711,7 +668,7 @@
 
   <!-- 総獲得・加算ボタン -->
   <div style="display:flex;gap:6px;margin-bottom:8px">
-    <div class="panel-bg total-panel" style="flex:6;padding:6px 8px;border-radius:6px;text-align:center">
+    <div class="panel-bg" style="flex:6;padding:6px 8px;border-radius:6px;text-align:center">
       <div>
         <span style="font-size:12px;font-weight:bold">総獲得</span>
         <span id="totalExpDisplay" class="mono-digit" style="font-size:22px;font-weight:bold">0</span>
@@ -725,7 +682,7 @@
   </div>
 
   <!-- タイマー表示エリア -->
-  <div class="panel-bg timer-panel" style="padding:6px;border-radius:6px;margin-bottom:8px">
+  <div class="panel-bg" style="padding:6px;border-radius:6px;margin-bottom:8px">
     <div style="display:flex;gap:6px;margin-bottom:4px;align-items:flex-start;justify-content:space-between">
       <div id="timerDisplay" class="mono-digit" style="font-size:28px;font-weight:bold">00:00.00</div>
       <div class="timer-right">
@@ -745,7 +702,7 @@
   <!-- 履歴コピー・想定玉給 -->
   <div style="display:flex;gap:6px;margin-bottom:6px;align-items:center">
     <button id="btnCopyHistory" class="btn-copy" style="flex:3;white-space:nowrap">履歴コピー</button>
-    <div id="estimatedReward" class="reward-panel" style="flex:7;background:#f0f7ff;border-radius:6px;padding:3px 6px;text-align:center;font-size:12px;display:flex;align-items:center;justify-content:center">
+    <div id="estimatedReward" style="flex:7;background:#f0f7ff;border-radius:6px;padding:3px 6px;text-align:center;font-size:12px;display:flex;align-items:center;justify-content:center">
       想定玉給:<span id="estimatedGoldDisplay" class="text-green" style="font-weight:bold;font-size:13px;margin-left:4px">--</span>
     </div>
   </div>
@@ -766,9 +723,8 @@
 </div>
 `;
 
-      // ----- イベントリスナー設定 -----
-      // (以降のイベントリスナーコードは元のまま完全に維持)
-
+      // ----- イベントリスナー設定（以降は元のコードを完全維持）-----
+      
       // 加算ボタン
       self.$("btnCalc").onclick = () => {
         if (Date.now() < self.calcLockedUntil) return;
