@@ -1,6 +1,6 @@
 // ==========ツールランチャー（改造版）=========
 // ========== バージョン管理 ==========
-const APP_VERSION = '2.2.1';
+const APP_VERSION = '2.2.2';
 
 // バージョン情報をグローバルに公開（HTML側と整合性チェック用）
 window.LAUNCHER_VERSION = APP_VERSION;
@@ -228,7 +228,6 @@ const DQXTools = {
             top: 0; left: 0;
             width: 100%; height: 100%;
             background: rgba(0, 0, 0, 0.85);
-            backdrop-filter: blur(4px);
             z-index: 20000;
             display: flex;
             justify-content: center;
