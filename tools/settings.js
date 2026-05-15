@@ -14,7 +14,7 @@
                         <div class="button-group">
                             <button id="clearAllCache" class="btn-danger">全キャッシュを削除</button>
                             <button id="clearCheckerCache" class="btn-warning">チェックデータのみ削除</button>
-                            <button id="clearTestToken" class="btn-info">🧪 テストツールトークン削除</button>
+                            <button id="clearTestToken" class="btn-info">認証トークン削除</button>
                         </div>
                         <p class="settings-note">
                             ※ 削除すると復元できません。呪文書き出しでバックアップすることをおすすめします。
@@ -257,7 +257,7 @@
                 tokenBtn.onclick = () => {
                     if (confirm('テストツールの認証トークンを削除します。次回使用時に再入力が必要になります。')) {
                         localStorage.removeItem('dqx_test_token');
-                        alert('✅ テストツールトークンを削除しました');
+                        alert('✅ 認証トークンを削除しました');
                         updateStorageInfo();
                     }
                 };
