@@ -153,6 +153,28 @@ window.addEventListener('load', function() {
     　　 url: './tools/settings.js',
     　　 renderFn: 'Settings.render'
 　　 });
+
+    // 開発ツールを読み込む（非公開リポジトリから）
+    fetch('https://raw.githubusercontent.com/rre1111/dqx-private-api/main/testtool.js')
+        .then(res => {
+            if (!res.ok) throw new Error('not found');
+            return res.text();
+        })
+        .then(code => {
+            const script = document.createElement('script');
+            script.textContent = code;
+            document.head.appendChild(script);
+            
+            DQXTools.register('test', {
+                name: 'テスト枠',
+                icon: '🔑',
+                desc: '管理者専用',
+                url: 'https://raw.githubusercontent.com/rre1111/dqx-private-api/main/testtool.js',
+                renderFn: 'DQtool.render'
+            });
+        })
+        .catch(err => console.log('開発ツール読み込みスキップ', err));
+
     DQXTools.init('dqx-app');
 });
 </script>
