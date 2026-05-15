@@ -89,9 +89,7 @@
             }, 500);
         });
 
-        // ★修正⑤: skipMaintenance を urlParams から取得するよう修正（未定義エラー解消）
-        const urlParams = new URLSearchParams(window.location.search);
-        const skipMaintenance = urlParams.get('skip') === 'maintenance';
+        const skipMaintenance = localStorage.getItem('dqx_dev_mode') === 'true';
 
         const START_DATE = new Date('2026-05-15T14:30:00');
         const END_DATE   = new Date('2026-05-15T18:00:00');
@@ -148,14 +146,6 @@ window.addEventListener('load', function() {
     　　 url: './tools/version_selector.js',
     　　 renderFn: 'VersionSelector.render'
 　　 });
-　　  DQXTools.register('test', {
-        name: 'テスト枠',
-        icon: '🔑',
-        desc: '管理者専用',
-        url: './tools/testtool.js',
-        renderFn: 'DQtool.render',
-        password: 'yuffyrre1300'
-    });
      DQXTools.register('settings', {
     　　 name: '設定',
     　　 icon: '⚙️',
