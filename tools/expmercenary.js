@@ -545,6 +545,10 @@
   .btn-copy{background:#008888;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:bold;display:flex;align-items:center;justify-content:center;padding:4px 8px;font-size:12px}
   .btn-oc{background:#fff1f0;border:1px solid #ffa39e;color:#cf1322;border-radius:4px;padding:6px 12px;font-size:12px;cursor:pointer;margin-right:8px}
   
+  /* 経験値カードと最適ボタン */
+  .exp-card{background:#f0f7ff;border:1px solid #7ab8ff;border-radius:6px}
+  .opt-button{background:#f0f7ff;border:1px solid #7ab8ff;border-radius:6px}
+  
   /* 行内クラス */
   .row-id-lap{color:#2cc9ff;font-weight:bold;width:26px;font-size:10px}
   .row-id-normal{color:#999;width:26px;font-size:10px}
@@ -561,44 +565,47 @@
   .row-controls{display:flex;gap:3px;flex:1}
   .row-controls-placeholder{flex:1;color:#aaa;text-align:center;font-size:10px}
   
-  /* ===== ダークモード（!important を使用して確実に上書き） ===== */
+  /* ===== ダークモード（!important はインラインスタイル上書き必須箇所のみ） ===== */
   body.dark-mode{background:#0a0a0f}
-  body.dark-mode .c{background:#1a1a2a !important;color:#e8e8f0 !important}
-  body.dark-mode select,body.dark-mode input,body.dark-mode button{background:#2a2a3a !important;color:#e8e8f0 !important}
-  body.dark-mode .h{border-bottom-color:#2a2a3a !important}
-  body.dark-mode .panel-bg{background:#0f0f17 !important;border-color:#2a2a3a !important}
+  body.dark-mode .c{background:#1a1a2a;color:#e8e8f0}
+  body.dark-mode select,body.dark-mode input,body.dark-mode button{background:#2a2a3a;color:#e8e8f0}
+  body.dark-mode .h{border-bottom-color:#2a2a3a}
+  body.dark-mode .panel-bg{background:#0f0f17;border-color:#2a2a3a}
+  body.dark-mode .exp-card{background:#2a2f45 !important}
+  body.dark-mode .opt-button{background:#2a2f45 !important}
+  /* インラインスタイルの color を上書きするものだけ !important */
   body.dark-mode #currentExpDisplay{color:#5a9eff !important}
-  body.dark-mode .text-orange{color:#ffaa66 !important}
-  body.dark-mode .text-green{color:#66ffaa !important}
-  body.dark-mode .text-red{color:#ff8888 !important}
-  body.dark-mode #totalExpDisplay{color:#fff !important}
-  body.dark-mode .timer-row{background:#2a2f45 !important}
-  body.dark-mode label{color:#e8e8f0 !important}
-  body.dark-mode .btn-primary{background:#1a6eaa !important;color:#fff !important;border:1px solid #3399cc !important}
-  body.dark-mode .btn-danger{background:#aa3333 !important;color:#fff !important;border:1px solid #cc5555 !important}
-  body.dark-mode .btn-info{background:#1a77aa !important;color:#fff !important;border:1px solid #3399cc !important}
-  body.dark-mode .btn-warning{background:#2a1515 !important;border:1px solid #883333 !important;color:#cc7777 !important}
-  body.dark-mode .btn-teal{background:#1a8899 !important;color:#fff !important;border:1px solid #33aabb !important}
-  body.dark-mode .passbook-area{background:#1e2a44 !important}
-  body.dark-mode .passbook-buttons button{background:#1a73e8 !important}
-  body.dark-mode #btnTimerStop{background:#006666 !important;border:1px solid #008888 !important}
-  body.dark-mode .btn-copy{background:#006666 !important}
-  body.dark-mode .btn-oc{background:#2a1515 !important;border:1px solid #883333 !important;color:#cc7777 !important}
-  body.dark-mode #ms,body.dark-mode #pb,body.dark-mode #cn,body.dark-mode .rs,body.dark-mode .cs{border-color:#7ab8ff !important}
-  body.dark-mode #ms{background-color:#2a2f45 !important}
-  body.dark-mode #ms,body.dark-mode #currentExpDisplay,body.dark-mode #pob div{color:#5a9eff !important}
-  body.dark-mode #overflowDisplay{color:#888 !important}
-  body.dark-mode #timerDisplay{color:#e8e8f0 !important}
-  body.dark-mode #estimatedReward{background:#2a2f45 !important;color:#e8e8f0 !important}
-  body.dark-mode #rowHistory{border-top-color:#2a2a3a !important;background:#1a1a2a !important}
-  body.dark-mode .sync-small{color:#aaa !important}
-  body.dark-mode .penalty-ref{color:#ff8888 !important}
-  body.dark-mode .exp-cell-lap{color:#aaa !important}
-  body.dark-mode .row-id-normal{color:#aaa !important}
-  body.dark-mode .row-id-lap{color:#2cc9ff !important}
-  body.dark-mode .time-lap{color:#2cc9ff !important}
-  body.dark-mode .row-controls-placeholder{color:#aaa !important}
-  body.dark-mode .del{color:#aaa !important}
+  body.dark-mode #ms,body.dark-mode #pob div{color:#5a9eff !important}
+  body.dark-mode .text-orange{color:#ffaa66}
+  body.dark-mode .text-green{color:#66ffaa}
+  body.dark-mode .text-red{color:#ff8888}
+  body.dark-mode #totalExpDisplay{color:#fff}
+  body.dark-mode .timer-row{background:#2a2f45}
+  body.dark-mode label{color:#e8e8f0}
+  body.dark-mode .btn-primary{background:#1a6eaa;color:#fff;border:1px solid #3399cc}
+  body.dark-mode .btn-danger{background:#aa3333;color:#fff;border:1px solid #cc5555}
+  body.dark-mode .btn-info{background:#1a77aa;color:#fff;border:1px solid #3399cc}
+  body.dark-mode .btn-warning{background:#2a1515;border:1px solid #883333;color:#cc7777}
+  body.dark-mode .btn-teal{background:#1a8899;color:#fff;border:1px solid #33aabb}
+  body.dark-mode .passbook-area{background:#1e2a44}
+  body.dark-mode .passbook-buttons button{background:#1a73e8}
+  body.dark-mode #btnTimerStop{background:#006666;border:1px solid #008888}
+  body.dark-mode .btn-copy{background:#006666}
+  body.dark-mode .btn-oc{background:#2a1515;border:1px solid #883333;color:#cc7777}
+  body.dark-mode #ms,body.dark-mode #pb,body.dark-mode #cn,body.dark-mode .rs,body.dark-mode .cs{border-color:#7ab8ff}
+  body.dark-mode #ms{background-color:#2a2f45}
+  body.dark-mode #overflowDisplay{color:#888}
+  body.dark-mode #timerDisplay{color:#e8e8f0}
+  body.dark-mode #estimatedReward{background:#2a2f45;color:#e8e8f0}
+  body.dark-mode #rowHistory{border-top-color:#2a2a3a;background:#1a1a2a}
+  body.dark-mode .sync-small{color:#aaa}
+  body.dark-mode .penalty-ref{color:#ff8888}
+  body.dark-mode .exp-cell-lap{color:#aaa}
+  body.dark-mode .row-id-normal{color:#aaa}
+  body.dark-mode .row-id-lap{color:#2cc9ff}
+  body.dark-mode .time-lap{color:#2cc9ff}
+  body.dark-mode .row-controls-placeholder{color:#aaa}
+  body.dark-mode .del{color:#aaa}
 </style>
 
 <div class="c">
@@ -622,11 +629,11 @@
 
   <!-- 経験値表示・最適ボタン・討伐数選択 -->
   <div style="display:flex;gap:4px;margin-bottom:8px">
-    <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#f0f7ff;border:1px solid #7ab8ff;border-radius:6px;padding:4px">
+    <div class="exp-card" style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:4px">
       <span id="currentExpDisplay" style="font-size:22px;font-weight:bold;color:#06c">0</span>
       <span id="overflowDisplay" style="font-size:9px;color:#999;margin-top:2px;visibility:hidden">溢れ:0</span>
     </div>
-    <div id="pob" style="width:46px;cursor:pointer;background:#f0f7ff;border:1px solid #7ab8ff;border-radius:6px;text-align:center;display:flex;flex-direction:column;align-items:center;justify-content:center">
+    <div id="pob" class="opt-button" style="width:46px;cursor:pointer;text-align:center;display:flex;flex-direction:column;align-items:center;justify-content:center">
       <div style="font-size:8px;color:#06c">最適</div>
       <div style="font-size:13px;font-weight:bold;color:#06c">+1</div>
     </div>
@@ -723,7 +730,7 @@
 </div>
 `;
 
-      // ----- イベントリスナー設定（以降は元のコードを完全維持）-----
+      // ----- イベントリスナー設定（元のコードを完全維持）-----
       
       // 加算ボタン
       self.$("btnCalc").onclick = () => {
