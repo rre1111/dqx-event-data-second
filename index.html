@@ -72,7 +72,7 @@
     </style>
     <script>
         // HTML側のバージョン（手動更新・ランチャーと合わせる）
-        const HTML_VERSION = '2.2.7';
+        const HTML_VERSION = '2.2.8';
 
         // ランチャー読み込み後の整合性チェック
         window.addEventListener('load', function() {
@@ -119,13 +119,18 @@
             });
         }
 
-        // テストツールを読み込む関数（トークン付き）
+        // テストツールを読み込む関数（GitHub API使用）
         function loadTestTool(token, onSuccess) {
-            fetch('https://raw.githubusercontent.com/rre1111/dqx-private-api/main/testtool.js', {
-                headers: { 'Authorization': `token ${token}` }
+            const url = 'https://api.github.com/repos/rre1111/dqx-private-api/contents/testtool.js';
+            
+            fetch(url, {
+                headers: {
+                    'Authorization': `token ${token}`,
+                    'Accept': 'application/vnd.github.v3.raw'
+                }
             })
             .then(res => {
-                if (!res.ok) throw new Error('認証失敗');
+                if (!res.ok) throw new Error(`認証失敗 (${res.status})`);
                 return res.text();
             })
             .then(code => {
@@ -138,11 +143,10 @@
                         name: 'テスト枠 🔒',
                         icon: '🔑',
                         desc: 'トークン認証が必要',
-                        url: 'https://api.github.com/repos/rre1111/dqx-private-api/contents/testtool.js',
+                        url: url,
                         renderFn: 'DQtool.render'
                     });
                     
-                    // 登録後にカードを再描画
                     if (DQXTools.currentTool === null) {
                         DQXTools.showLauncher();
                     }
@@ -151,7 +155,7 @@
                 if (onSuccess) onSuccess();
             })
             .catch(err => {
-                console.log('テストツール読み込み失敗', err);
+                console.error('テストツール読み込み失敗', err);
                 alert('認証に失敗しました。トークンが正しいか確認してください。');
                 localStorage.removeItem('dqx_test_token');
             });
