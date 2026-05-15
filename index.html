@@ -71,10 +71,7 @@
         }
     </style>
     <script>
-        // HTML側のバージョン（手動更新・ランチャーと合わせる）
-        const HTML_VERSION = '2.3.4';
-
-        // ランチャー読み込み後の整合性チェック
+        const HTML_VERSION = '2.3.5';
         window.addEventListener('load', function() {
             setTimeout(function() {
                 if (typeof window.LAUNCHER_VERSION !== 'undefined') {
@@ -90,7 +87,6 @@
         });
 
         const skipMaintenance = localStorage.getItem('dqx_dev_mode') === 'true';
-
         const START_DATE = new Date('2026-05-15T14:30:00');
         const END_DATE   = new Date('2026-05-15T18:00:00');
         const MAINTENANCE_MODE = (new Date() >= START_DATE && new Date() <= END_DATE);
@@ -110,16 +106,29 @@
                     flex-direction: column;
                     font-family: sans-serif;
                 `;
-                overlay.innerHTML = `
-                    <div style="background: #223a70; padding: 30px 60px; border-radius: 20px; color: white; font-size: 2rem; font-weight: bold;">
-                        メンテナンス中<br>14:30〜18:00
-                    </div>
-                `;
+                overlay.innerHTML = `<div style="background: #223a70; padding: 30px 60px; border-radius: 20px; color: white; font-size: 2rem; font-weight: bold;">メンテナンス中<br>14:30〜18:00</div>`;
                 document.body.appendChild(overlay);
             });
         }
 
-        // テストツールを読み込む関数（GitHub API使用、クエリパラメータなし）
+        // テストカードを追加する関数
+        function addTestCard() {
+            const homeGrid = document.querySelector('.home-grid');
+            if (homeGrid && !document.querySelector('.test-manual-card')) {
+                const testCard = document.createElement('div');
+                testCard.className = 'tool-card test-manual-card';
+                testCard.setAttribute('data-tool-id', 'test-manual');
+                testCard.innerHTML = `
+                    <div class="tool-card-icon">🔑</div>
+                    <div class="tool-card-name">テスト枠 🔒</div>
+                    <div class="tool-card-desc">API認証</div>
+                `;
+                testCard.onclick = handleTestToolClick;
+                homeGrid.appendChild(testCard);
+            }
+        }
+
+        // テストツール読み込み関数
         function handleTestToolClick() {
             const savedToken = localStorage.getItem('dqx_test_token');
             let token = savedToken;
@@ -130,11 +139,19 @@
                 localStorage.setItem('dqx_test_token', token);
             }
             
-            // ローディング表示
             const loadingDiv = document.createElement('div');
             loadingDiv.textContent = '読み込み中...';
             loadingDiv.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#000;color:#fff;padding:20px;border-radius:10px;z-index:10001;';
             document.body.appendChild(loadingDiv);
+            
+            // 既存のツールコンテナを削除
+            const oldContainer = document.getElementById('dqx-tool-container');
+            if (oldContainer) oldContainer.remove();
+            
+            // ランチャー画面をクリア（ホーム画面のDOMを削除）
+            const dqxApp = document.getElementById('dqx-app');
+            const homeContainer = dqxApp.querySelector('.home-container');
+            if (homeContainer) homeContainer.remove();
             
             fetch('https://api.github.com/repos/rre1111/dqx-private-api/contents/testtool.js', {
                 headers: {
@@ -148,21 +165,14 @@
             })
             .then(code => {
                 loadingDiv.remove();
-                
-                // コードを実行
                 const script = document.createElement('script');
                 script.textContent = code;
                 document.head.appendChild(script);
                 
-                // ツールが読み込まれたら直接レンダリング
                 if (typeof DQtool !== 'undefined' && typeof DQtool.render === 'function') {
-                    const oldContainer = document.getElementById('dqx-tool-container');
-                    if (oldContainer) oldContainer.remove();
-                    
                     const newContainer = document.createElement('div');
                     newContainer.id = 'dqx-tool-container';
-                    document.getElementById('dqx-app').appendChild(newContainer);
-                    
+                    dqxApp.appendChild(newContainer);
                     DQtool.render('#dqx-tool-container');
                     
                     if (typeof DQXTools !== 'undefined') {
@@ -173,9 +183,13 @@
             })
             .catch(err => {
                 loadingDiv.remove();
-                console.error(err);
-                alert('認証失敗。トークンが正しいか、repoスコープがあるか確認してください。');
+                alert('認証失敗。トークンが正しいか確認してください。');
                 localStorage.removeItem('dqx_test_token');
+                // エラー時はランチャーを再表示
+                if (typeof DQXTools !== 'undefined') {
+                    DQXTools.showLauncher();
+                    setTimeout(addTestCard, 50);
+                }
             });
         }
     </script>
@@ -185,7 +199,6 @@
 <script src="./launcher.js"></script>
 <script>
 window.addEventListener('load', function() {
-    // 通常ツールの登録
     DQXTools.register('Checker', {
         name: 'コンテンツ<br>チェッカー',
         icon: '📋',
@@ -215,24 +228,15 @@ window.addEventListener('load', function() {
         renderFn: 'Settings.render'
     });
 
-    DQXTools.init('dqx-app');
+    // showLauncher をフックしてカードを再追加
+    const originalShowLauncher = DQXTools.showLauncher.bind(DQXTools);
+    DQXTools.showLauncher = function() {
+        originalShowLauncher();
+        setTimeout(addTestCard, 50);
+    };
 
-    // 手動でテストカードを追加（loadTool を使わない）
-    setTimeout(() => {
-        const homeGrid = document.querySelector('.home-grid');
-        if (homeGrid && !document.querySelector('.test-manual-card')) {
-            const testCard = document.createElement('div');
-            testCard.className = 'tool-card';
-            testCard.setAttribute('data-tool-id', 'test-manual');
-            testCard.innerHTML = `
-                <div class="tool-card-icon">🔑</div>
-                <div class="tool-card-name">テスト枠 🔒</div>
-                <div class="tool-card-desc">API認証</div>
-            `;
-            testCard.onclick = handleTestToolClick;
-            homeGrid.appendChild(testCard);
-        }
-    }, 100);
+    DQXTools.init('dqx-app');
+    setTimeout(addTestCard, 100);
 });
 </script>
 </body>
