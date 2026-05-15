@@ -71,7 +71,7 @@
         }
     </style>
     <script>
-        const HTML_VERSION = '2.3.5';
+        const HTML_VERSION = '2.3.6';
         window.addEventListener('load', function() {
             setTimeout(function() {
                 if (typeof window.LAUNCHER_VERSION !== 'undefined') {
@@ -111,30 +111,42 @@
             });
         }
 
+        // ツール定義（ファイル名, グローバル名, 表示名, アイコン）
+        const TEST_TOOLS = [
+            { file: 'testtool.js', globalName: 'DQtool', name: 'テスト枠1', icon: '🔑' },
+            { file: 'testtool2.js', globalName: 'DQtool2', name: 'テスト枠2', icon: '🔧' },
+            { file: 'testtool3.js', globalName: 'DQtool3', name: 'テスト枠3', icon: '🛠️' }
+        ];
+
         // テストカードを追加する関数
-        function addTestCard() {
+        function addTestCards() {
             const homeGrid = document.querySelector('.home-grid');
-            if (homeGrid && !document.querySelector('.test-manual-card')) {
-                const testCard = document.createElement('div');
-                testCard.className = 'tool-card test-manual-card';
-                testCard.setAttribute('data-tool-id', 'test-manual');
-                testCard.innerHTML = `
-                    <div class="tool-card-icon">🔑</div>
-                    <div class="tool-card-name">テスト枠 🔒</div>
-                    <div class="tool-card-desc">API認証</div>
-                `;
-                testCard.onclick = handleTestToolClick;
-                homeGrid.appendChild(testCard);
-            }
+            if (!homeGrid) return;
+            
+            TEST_TOOLS.forEach((tool, index) => {
+                const cardClass = `test-manual-card-${index}`;
+                if (!document.querySelector(`.${cardClass}`)) {
+                    const testCard = document.createElement('div');
+                    testCard.className = `tool-card ${cardClass}`;
+                    testCard.setAttribute('data-tool-id', `test-manual-${index}`);
+                    testCard.innerHTML = `
+                        <div class="tool-card-icon">${tool.icon}</div>
+                        <div class="tool-card-name">${tool.name} 🔒</div>
+                        <div class="tool-card-desc">API認証</div>
+                    `;
+                    testCard.onclick = () => handleTestToolClick(tool.file, tool.globalName, tool.name);
+                    homeGrid.appendChild(testCard);
+                }
+            });
         }
 
-        // テストツール読み込み関数
-        function handleTestToolClick() {
+        // テストツール読み込み関数（共通）
+        function handleTestToolClick(filename, globalName, toolName) {
             const savedToken = localStorage.getItem('dqx_test_token');
             let token = savedToken;
             
             if (!token) {
-                token = prompt('🔑 GitHub APIトークンを入力してください（開発者専用）');
+                token = prompt(`🔑 ${toolName}を使用するためのGitHub APIトークンを入力してください（開発者専用）`);
                 if (!token) return;
                 localStorage.setItem('dqx_test_token', token);
             }
@@ -153,7 +165,7 @@
             const homeContainer = dqxApp.querySelector('.home-container');
             if (homeContainer) homeContainer.remove();
             
-            fetch('https://api.github.com/repos/rre1111/dqx-private-api/contents/testtool.js', {
+            fetch(`https://api.github.com/repos/rre1111/dqx-private-api/contents/${filename}`, {
                 headers: {
                     'Authorization': `token ${token}`,
                     'Accept': 'application/vnd.github.v3.raw'
@@ -169,26 +181,29 @@
                 script.textContent = code;
                 document.head.appendChild(script);
                 
-                if (typeof DQtool !== 'undefined' && typeof DQtool.render === 'function') {
+                if (typeof window[globalName] !== 'undefined' && typeof window[globalName].render === 'function') {
                     const newContainer = document.createElement('div');
                     newContainer.id = 'dqx-tool-container';
                     dqxApp.appendChild(newContainer);
-                    DQtool.render('#dqx-tool-container');
+                    window[globalName].render('#dqx-tool-container');
                     
                     if (typeof DQXTools !== 'undefined') {
-                        DQXTools.currentTool = 'test-manual';
+                        DQXTools.currentTool = `test-manual-${filename}`;
                         DQXTools.renderToolMenu();
                     }
+                } else {
+                    throw new Error(`グローバル ${globalName} が見つからないか、render関数がありません`);
                 }
             })
             .catch(err => {
                 loadingDiv.remove();
-                alert('認証失敗。トークンが正しいか確認してください。');
+                console.error(err);
+                alert(`認証失敗: ${err.message}`);
                 localStorage.removeItem('dqx_test_token');
                 // エラー時はランチャーを再表示
                 if (typeof DQXTools !== 'undefined') {
                     DQXTools.showLauncher();
-                    setTimeout(addTestCard, 50);
+                    setTimeout(addTestCards, 50);
                 }
             });
         }
@@ -232,11 +247,11 @@ window.addEventListener('load', function() {
     const originalShowLauncher = DQXTools.showLauncher.bind(DQXTools);
     DQXTools.showLauncher = function() {
         originalShowLauncher();
-        setTimeout(addTestCard, 50);
+        setTimeout(addTestCards, 50);
     };
 
     DQXTools.init('dqx-app');
-    setTimeout(addTestCard, 100);
+    setTimeout(addTestCards, 100);
 });
 </script>
 </body>
