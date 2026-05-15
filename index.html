@@ -72,7 +72,7 @@
     </style>
     <script>
         // HTML側のバージョン（手動更新・ランチャーと合わせる）
-        const HTML_VERSION = '2.2.4';
+        const HTML_VERSION = '2.2.5';
 
         // ランチャー読み込み後の整合性チェック
         window.addEventListener('load', function() {
@@ -154,26 +154,87 @@ window.addEventListener('load', function() {
     　　 renderFn: 'Settings.render'
 　　 });
 
-    // 開発ツールを読み込む（非公開リポジトリから）
-    fetch('https://raw.githubusercontent.com/rre1111/dqx-private-api/main/testtool.js')
-        .then(res => {
-            if (!res.ok) throw new Error('not found');
-            return res.text();
-        })
-        .then(code => {
-            const script = document.createElement('script');
-            script.textContent = code;
-            document.head.appendChild(script);
-            
-            DQXTools.register('test', {
-                name: 'テスト枠',
-                icon: '🔑',
-                desc: '管理者専用',
-                url: 'https://raw.githubusercontent.com/rre1111/dqx-private-api/main/testtool.js',
-                renderFn: 'DQtool.render'
+    // テストツールを読み込む関数（トークン付き）
+function loadTestTool(token, onSuccess) {
+    fetch('https://raw.githubusercontent.com/rre1111/dqx-private-api/main/testtool.js', {
+        headers: { 'Authorization': `token ${token}` }
+    })
+    .then(res => {
+        if (!res.ok) throw new Error('認証失敗');
+        return res.text();
+    })
+    .then(code => {
+        const script = document.createElement('script');
+        script.textContent = code;
+        document.head.appendChild(script);
+        
+        DQXTools.register('test', {
+            name: 'テスト枠 🔒',
+            icon: '🔑',
+            desc: 'トークン認証が必要',
+            url: 'https://raw.githubusercontent.com/rre1111/dqx-private-api/main/testtool.js',
+            renderFn: 'DQtool.render'
+        });
+        
+        // 登録後にカードを再描画
+        if (DQXTools.currentTool === null) {
+            DQXTools.showLauncher();
+        }
+        
+        if (onSuccess) onSuccess();
+    })
+    .catch(err => {
+        console.log('テストツール読み込み失敗', err);
+        alert('認証に失敗しました。トークンが正しいか確認してください。');
+        localStorage.removeItem('dqx_test_token');
+    });
+}
+
+// カードをクリックした時の処理（後で上書き）
+function handleTestToolClick() {
+    const savedToken = localStorage.getItem('dqx_test_token');
+    
+    if (savedToken) {
+        // トークンあり → そのまま読み込み
+        loadTestTool(savedToken, () => {
+            DQXTools.loadTool('test');
+        });
+    } else {
+        // トークンなし → 入力を促す
+        const token = prompt('🔑 テストツールを使用するにはトークンを入力してください（開発者専用）');
+        if (token) {
+            localStorage.setItem('dqx_test_token', token);
+            loadTestTool(token, () => {
+                DQXTools.loadTool('test');
             });
-        })
-        .catch(err => console.log('開発ツール読み込みスキップ', err));
+        }
+    }
+}
+
+// 通常のツール登録後にテストツールカードを追加
+window.addEventListener('load', function() {
+    // 既存のツール登録（Checker, exp-m, versions, settings）
+    // ... （あなたの現在のコード）
+    
+    // テストツールを仮登録（カード表示のため）
+    DQXTools.register('test', {
+        name: 'テスト枠 🔒',
+        icon: '🔑',
+        desc: 'クリックで認証',
+        url: '',  // 実際のURLは認証後
+        renderFn: ''
+    });
+    
+    DQXTools.init('dqx-app');
+    
+    // カードクリック時の処理を上書き
+    setTimeout(() => {
+        const testCard = document.querySelector('.tool-card[data-tool-id="test"]');
+        if (testCard) {
+            testCard.onclick = handleTestToolClick;
+        }
+    }, 100);
+    });
 
     DQXTools.init('dqx-app');
 });
