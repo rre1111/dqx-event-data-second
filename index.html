@@ -121,60 +121,63 @@
 
         // テストツールを読み込む関数（GitHub API使用、クエリパラメータなし）
         function handleTestToolClick() {
-    const savedToken = localStorage.getItem('dqx_test_token');
-    let token = savedToken;
-    
-    if (!token) {
-        token = prompt('🔑 GitHub APIトークンを入力してください（開発者専用）');
-        if (!token) return;
-        localStorage.setItem('dqx_test_token', token);
-    }
-    
-    fetch('https://api.github.com/repos/rre1111/dqx-private-api/contents/testtool.js', {
-        headers: {
-            'Authorization': `token ${token}`,
-            'Accept': 'application/vnd.github.v3.raw'
+            const savedToken = localStorage.getItem('dqx_test_token');
+            let token = savedToken;
+            
+            if (!token) {
+                token = prompt('🔑 GitHub APIトークンを入力してください（開発者専用）');
+                if (!token) return;
+                localStorage.setItem('dqx_test_token', token);
+            }
+            
+            // ローディング表示
+            const loadingDiv = document.createElement('div');
+            loadingDiv.textContent = '読み込み中...';
+            loadingDiv.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#000;color:#fff;padding:20px;border-radius:10px;z-index:10001;';
+            document.body.appendChild(loadingDiv);
+            
+            fetch('https://api.github.com/repos/rre1111/dqx-private-api/contents/testtool.js', {
+                headers: {
+                    'Authorization': `token ${token}`,
+                    'Accept': 'application/vnd.github.v3.raw'
+                }
+            })
+            .then(res => {
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                return res.text();
+            })
+            .then(code => {
+                loadingDiv.remove();
+                
+                // コードを実行
+                const script = document.createElement('script');
+                script.textContent = code;
+                document.head.appendChild(script);
+                
+                // ツールが読み込まれたら直接レンダリング
+                if (typeof DQtool !== 'undefined' && typeof DQtool.render === 'function') {
+                    const oldContainer = document.getElementById('dqx-tool-container');
+                    if (oldContainer) oldContainer.remove();
+                    
+                    const newContainer = document.createElement('div');
+                    newContainer.id = 'dqx-tool-container';
+                    document.getElementById('dqx-app').appendChild(newContainer);
+                    
+                    DQtool.render('#dqx-tool-container');
+                    
+                    if (typeof DQXTools !== 'undefined') {
+                        DQXTools.currentTool = 'test-manual';
+                        DQXTools.renderToolMenu();
+                    }
+                }
+            })
+            .catch(err => {
+                loadingDiv.remove();
+                console.error(err);
+                alert('認証失敗。トークンが正しいか、repoスコープがあるか確認してください。');
+                localStorage.removeItem('dqx_test_token');
+            });
         }
-    })
-    .then(res => {
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        return res.text();
-    })
-    .then(code => {
-        // コードを実行
-        const script = document.createElement('script');
-        script.textContent = code;
-        document.head.appendChild(script);
-        
-        // ツール登録
-        DQXTools.register('test', {
-            name: 'テスト枠 🔒',
-            icon: '🔑',
-            desc: 'API認証',
-            url: 'https://api.github.com/repos/rre1111/dqx-private-api/contents/testtool.js',
-            renderFn: 'DQtool.render'
-        });
-        
-        // カード再描画
-        if (DQXTools.currentTool === null) {
-            DQXTools.showLauncher();
-        }
-        
-        // ★ loadTool を使わずに直接 render を呼ぶ
-        const container = document.getElementById('dqx-tool-container');
-        if (container && typeof DQtool !== 'undefined' && typeof DQtool.render === 'function') {
-            container.innerHTML = '';
-            DQtool.render('#dqx-tool-container');
-            DQXTools.currentTool = 'test';
-            DQXTools.renderToolMenu();
-        }
-    })
-    .catch(err => {
-        console.error(err);
-        alert('認証失敗。トークンが正しいか、repoスコープがあるか確認してください。');
-        localStorage.removeItem('dqx_test_token');
-    });
-}
     </script>
 </head>
 <body>
@@ -212,22 +215,22 @@ window.addEventListener('load', function() {
         renderFn: 'Settings.render'
     });
 
-    // テストツールを仮登録（カード表示のため）
-    DQXTools.register('test', {
-        name: 'テスト枠 🔒',
-        icon: '🔑',
-        desc: 'クリックで認証',
-        url: '',
-        renderFn: ''
-    });
-
     DQXTools.init('dqx-app');
 
-    // カードクリック時の処理を上書き
+    // 手動でテストカードを追加（loadTool を使わない）
     setTimeout(() => {
-        const testCard = document.querySelector('.tool-card[data-tool-id="test"]');
-        if (testCard) {
+        const homeGrid = document.querySelector('.home-grid');
+        if (homeGrid && !document.querySelector('.test-manual-card')) {
+            const testCard = document.createElement('div');
+            testCard.className = 'tool-card';
+            testCard.setAttribute('data-tool-id', 'test-manual');
+            testCard.innerHTML = `
+                <div class="tool-card-icon">🔑</div>
+                <div class="tool-card-name">テスト枠 🔒</div>
+                <div class="tool-card-desc">API認証</div>
+            `;
             testCard.onclick = handleTestToolClick;
+            homeGrid.appendChild(testCard);
         }
     }, 100);
 });
