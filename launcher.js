@@ -22,6 +22,7 @@ const DQXTools = {
     currentTool: null,
     container: null,
     darkMode: false,
+    boundResizeHandler: null,  // 追加: リサイズハンドラを保存
 
     // ----- 登録機能（変更なし）-----
     register: function(toolId, toolConfig) {
@@ -32,7 +33,7 @@ const DQXTools = {
         return window.innerWidth <= 768;
     },
 
-    // ----- 初期化（変更なし）-----
+    // ----- 初期化（修正済み）-----
     init: function(containerId) {
         checkVersionUpdate();
         this.container = document.getElementById(containerId);
@@ -44,13 +45,15 @@ const DQXTools = {
         this.applyDarkMode();
         this.showLauncher();
 
-        window.addEventListener('resize', () => {
+        // リサイズハンドラをバインドして保存
+        this.boundResizeHandler = () => {
             if (this.currentTool === null) {
                 this.showLauncher();
             } else {
                 this.renderToolMenu();
             }
-        });
+        };
+        window.addEventListener('resize', this.boundResizeHandler);
     },
 
     // ----- ダークモード（変更なし）-----
@@ -218,7 +221,7 @@ const DQXTools = {
         let rand = Math.random() * totalWeight;
         const randomImage = loadingImages.find(img => (rand -= img.weight) < 0).src;
 
-                        const loadingDiv = document.createElement('div');
+        const loadingDiv = document.createElement('div');
         loadingDiv.id = 'dqx-loading';
         loadingDiv.style.cssText = `
             position: fixed;
@@ -319,6 +322,14 @@ const DQXTools = {
         }
     },
 
+    // ==================== ランチャー自身の破棄（追加） ====================
+    destroy: function() {
+        if (this.boundResizeHandler) {
+            window.removeEventListener('resize', this.boundResizeHandler);
+            this.boundResizeHandler = null;
+        }
+    },
+
     loadScript: function(url) {
         const cacheBustUrl = url + '?v=' + APP_VERSION;
         return new Promise((resolve, reject) => {
@@ -335,3 +346,8 @@ const DQXTools = {
         });
     }
 };
+
+// 外部から destroy を呼べるように公開
+if (typeof window.DQXTools === 'undefined') {
+    window.DQXTools = DQXTools;
+}
