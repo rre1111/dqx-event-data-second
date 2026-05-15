@@ -545,9 +545,11 @@
   .btn-copy{background:#008888;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:bold;display:flex;align-items:center;justify-content:center;padding:4px 8px;font-size:12px}
   .btn-oc{background:#fff1f0;border:1px solid #ffa39e;color:#cf1322;border-radius:4px;padding:6px 12px;font-size:12px;cursor:pointer;margin-right:8px}
   
-  /* 経験値カードと最適ボタン */
+  /* 背景クラス */
   .exp-card{background:#f0f7ff;border:1px solid #7ab8ff;border-radius:6px}
   .opt-button{background:#f0f7ff;border:1px solid #7ab8ff;border-radius:6px}
+  .monster-select{background:#f0f7ff}
+  .reward-card{background:#f0f7ff}
   
   /* 行内クラス */
   .row-id-lap{color:#2cc9ff;font-weight:bold;width:26px;font-size:10px}
@@ -565,15 +567,18 @@
   .row-controls{display:flex;gap:3px;flex:1}
   .row-controls-placeholder{flex:1;color:#aaa;text-align:center;font-size:10px}
   
-  /* ===== ダークモード（!important はインラインスタイル上書き必須箇所のみ） ===== */
+  /* ===== ダークモード ===== */
   body.dark-mode{background:#0a0a0f}
   body.dark-mode .c{background:#1a1a2a;color:#e8e8f0}
   body.dark-mode select,body.dark-mode input,body.dark-mode button{background:#2a2a3a;color:#e8e8f0}
   body.dark-mode .h{border-bottom-color:#2a2a3a}
   body.dark-mode .panel-bg{background:#0f0f17;border-color:#2a2a3a}
+  /* 背景上書き（インラインスタイルを打ち消すため !important） */
   body.dark-mode .exp-card{background:#2a2f45 !important}
   body.dark-mode .opt-button{background:#2a2f45 !important}
-  /* インラインスタイルの color を上書きするものだけ !important */
+  body.dark-mode .monster-select{background:#2a2f45 !important}
+  body.dark-mode .reward-card{background:#2a2f45 !important}
+  /* インラインスタイルの色を上書きするものだけ !important */
   body.dark-mode #currentExpDisplay{color:#5a9eff !important}
   body.dark-mode #ms,body.dark-mode #pob div{color:#5a9eff !important}
   body.dark-mode .text-orange{color:#ffaa66}
@@ -596,7 +601,6 @@
   body.dark-mode #ms{background-color:#2a2f45}
   body.dark-mode #overflowDisplay{color:#888}
   body.dark-mode #timerDisplay{color:#e8e8f0}
-  body.dark-mode #estimatedReward{background:#2a2f45;color:#e8e8f0}
   body.dark-mode #rowHistory{border-top-color:#2a2a3a;background:#1a1a2a}
   body.dark-mode .sync-small{color:#aaa}
   body.dark-mode .penalty-ref{color:#ff8888}
@@ -612,7 +616,7 @@
 
   <!-- モンスター選択・通帳選択 -->
   <div style="display:flex;gap:6px;margin-bottom:8px">
-    <select id="ms" style="flex:2;padding:6px;font-size:15px;border:1px solid #7ab8ff;border-radius:4px;font-weight:bold;background:#f0f7ff">
+    <select id="ms" class="monster-select" style="flex:2;padding:6px;font-size:15px;border:1px solid #7ab8ff;border-radius:4px;font-weight:bold">
       <option value="returner"      data-base="13118" data-bonus="0">リターナーモア</option>
       <option value="durahan"       data-base="22802" data-bonus="4561" selected>デュラハーン</option>
       <option value="hell"          data-base="23990" data-bonus="4798">ヘルガーディアン</option>
@@ -709,7 +713,7 @@
   <!-- 履歴コピー・想定玉給 -->
   <div style="display:flex;gap:6px;margin-bottom:6px;align-items:center">
     <button id="btnCopyHistory" class="btn-copy" style="flex:3;white-space:nowrap">履歴コピー</button>
-    <div id="estimatedReward" style="flex:7;background:#f0f7ff;border-radius:6px;padding:3px 6px;text-align:center;font-size:12px;display:flex;align-items:center;justify-content:center">
+    <div id="estimatedReward" class="reward-card" style="flex:7;border-radius:6px;padding:3px 6px;text-align:center;font-size:12px;display:flex;align-items:center;justify-content:center">
       想定玉給:<span id="estimatedGoldDisplay" class="text-green" style="font-weight:bold;font-size:13px;margin-left:4px">--</span>
     </div>
   </div>
