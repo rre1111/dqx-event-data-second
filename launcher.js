@@ -1,6 +1,6 @@
 // ==========ツールランチャー（改造版）=========
 // ========== バージョン管理 ==========
-const APP_VERSION = '2.2.2';
+const APP_VERSION = '2.2.3';
 
 // バージョン情報をグローバルに公開（HTML側と整合性チェック用）
 window.LAUNCHER_VERSION = APP_VERSION;
@@ -191,14 +191,6 @@ const DQXTools = {
         const tool = this.tools[toolId];
         if (!tool) return;
         if (this.currentTool === toolId) return;
-
-        if (tool.password) {
-            const inputPass = prompt(`🔒 「${tool.name}」のパスワードを入力してください:`);
-            if (inputPass !== tool.password) {
-                alert('パスワードが違います。');
-                return;
-            }
-        }
 
         this.destroyCurrentTool();
 
