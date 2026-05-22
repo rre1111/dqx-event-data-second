@@ -1,6 +1,6 @@
 // ==========ツールランチャー（改造版）=========
 // ========== バージョン管理 ==========
-const APP_VERSION = '3.0.1β';
+const APP_VERSION = '3.0.2β';
 
 // バージョン情報をグローバルに公開（HTML側と整合性チェック用）
 window.LAUNCHER_VERSION = APP_VERSION;
@@ -43,459 +43,228 @@ const DQXTools = {
 
         // ========== Pull to Refresh（スワイプ引っ張り再読み込み）禁止 ==========
         let touchStartY = 0;
-        document.addEventListener('touchstart', (e) => {
-            touchStartY = e.touches[0].clientY;
-        }, { passive: false });
-        document.addEventListener('touchmove', (e) => {
-            const touchY = e.touches[0].clientY;
-            if (touchY > touchStartY && window.scrollY === 0) {
-                e.preventDefault();
+        window.addEventListener('touchstart', (e) => {
+            if (e.touches.length === 1) {
+                touchStartY = e.touches[0].clientY;
             }
-        }, { passive: false });
+        }, { passive: true });
 
-        // ========== ストレージキーのクリーンアップ（不正なキーを削除） ==========
-        this.cleanupStorage();
-
-        this.darkMode = localStorage.getItem('darkMode') === 'dark';
-        this.applyDarkMode();
-        this.showLauncher();
-
-        this.boundResizeHandler = () => {
-            if (this.currentTool === null) {
-                this.showLauncher();
-            } else {
-                this.renderToolMenu();
-            }
-        };
-        window.addEventListener('resize', this.boundResizeHandler);
-    },
-
-    cleanupStorage: function() {
-        // 許可されたlocalStorage キーのリスト
-        const allowedLocalStorageKeys = [
-            'dqx_app_version',
-            'dqx_card_order',
-            'dqx_test_token',
-            'dqx_dev_mode',
-            'darkMode',
-            'dqx_craft_last',
-            'dqx_chars_final10',
-            'dqx_disabled_final10',
-            'dqx_hidden_tasks_v1',
-            'dqx_limited_checks_v3'
-        ];
-
-        // ========== localStorageのクリーンアップ ==========
-        for (let i = localStorage.length - 1; i >= 0; i--) {
-            const key = localStorage.key(i);
-            if (!key) continue;
-
-            // 許可リストに含まれている、または'dqx_check_final10_'で始まるキーは保持
-            const isAllowed = allowedLocalStorageKeys.includes(key) || key.startsWith('dqx_check_final10_');
-            if (!isAllowed) {
-                try {
-                    localStorage.removeItem(key);
-                    console.log(`[Storage Cleanup] localStorage から削除: ${key}`);
-                } catch (e) {
-                    console.warn(`[Storage Cleanup] localStorage の削除に失敗: ${key}`, e);
+        window.addEventListener('touchmove', (e) => {
+            if (e.touches.length === 1 && window.scrollY === 0) {
+                const touchMoveY = e.touches[0].clientY;
+                if (touchMoveY > touchStartY) {
+                    e.preventDefault(); // 下スクロールでの更新を塞ぐ
                 }
             }
-        }
+        }, { passive: false });
 
-        // ========== sessionStorageのクリーンアップ ==========
-        const allowedSessionStorageKeys = ['dqx_reload_count'];
-        for (let i = sessionStorage.length - 1; i >= 0; i--) {
-            const key = sessionStorage.key(i);
-            if (!key) continue;
-
-            if (!allowedSessionStorageKeys.includes(key)) {
-                try {
-                    sessionStorage.removeItem(key);
-                    console.log(`[Storage Cleanup] sessionStorage から削除: ${key}`);
-                } catch (e) {
-                    console.warn(`[Storage Cleanup] sessionStorage の削除に失敗: ${key}`, e);
-                }
-            }
-        }
+        // 初期設定
+        this.loadSettings();
+        this.renderHome();
     },
 
-    applyDarkMode: function() {
-        document.body.classList.toggle('dark-mode', this.darkMode);
-        const btn = document.getElementById('global-dark-toggle');
-        if (btn) {
-            btn.textContent = this.darkMode ? '☀️' : '🌙';
+    loadSettings: function() {
+        this.darkMode = localStorage.getItem('dqx_dark_mode') === 'true';
+        if (this.darkMode) {
+            document.body.classList.add('dark-mode');
+        } else {
+            document.body.classList.remove('dark-mode');
         }
     },
 
     toggleDarkMode: function() {
         this.darkMode = !this.darkMode;
-        localStorage.setItem('darkMode', this.darkMode ? 'dark' : 'light');
-        this.applyDarkMode();
-        if (this.currentTool === null) {
-            this.showLauncher();
+        localStorage.setItem('dqx_dark_mode', this.darkMode);
+        if (this.darkMode) {
+            document.body.classList.add('dark-mode');
         } else {
-            this.renderToolMenu();
+            document.body.classList.remove('dark-mode');
         }
     },
 
-    showLauncher: function() {
-        // 保存された順序を読み込み
-        const savedOrder = localStorage.getItem('dqx_card_order');
-        const order = savedOrder ? JSON.parse(savedOrder) : null;
-        
-        // ツールを順序に従ってソート
-        let toolEntries = Object.entries(this.tools);
-        if (order) {
-            toolEntries.sort((a, b) => {
-                const aIdx = order.indexOf(a[0]);
-                const bIdx = order.indexOf(b[0]);
-                if (aIdx === -1 && bIdx === -1) return 0;
-                if (aIdx === -1) return 1;
-                if (bIdx === -1) return -1;
-                return aIdx - bIdx;
-            });
-        }
-        
-        const cardButtons = toolEntries.map(([id, tool]) => {
-            const icon = tool.icon || '🔧';
-            const name = tool.name;
-            const desc = tool.desc || '';
-            return `
-                <div class="tool-card" data-tool-id="${id}">
-                    <div class="tool-card-icon">${icon}</div>
-                    <div class="tool-card-name">${name}</div>
-                    <div class="tool-card-desc">${desc}</div>
-                </div>
-            `;
-        }).join('');
+    renderHome: function() {
+        this.destroyCurrentTool();
+        this.currentTool = null;
 
-        this.container.innerHTML = `
+        // メニューバーをクリア
+        const oldMenu = document.querySelector('.tool-menu-sidebar, .tool-menu-bottom');
+        if (oldMenu) oldMenu.remove();
+        document.body.style.paddingLeft = '0';
+        document.body.style.paddingBottom = '0';
+
+        let html = `
             <div class="home-container">
                 <div class="home-header">
-                    <h1 class="home-title">🎮 DQXツール</h1>
-                    <button id="global-dark-toggle" class="dark-toggle-btn">${this.darkMode ? '☀️' : '🌙'}</button>
+                    <h1 class="home-title">DQXツール群</h1>
+                    <button id="darkToggleBtn" class="dark-toggle-btn">${this.darkMode ? '☀️' : '🌙'}</button>
                 </div>
-                <div class="home-grid">
-                    ${cardButtons}
-                </div>
-                <div class="home-footer">
-                    © 2026 yuffy_rre
-                </div>
+                <div class="home-grid" id="homeGrid"></div>
             </div>
         `;
+        this.container.innerHTML = html;
 
-        const toggleBtn = document.getElementById('global-dark-toggle');
-        if (toggleBtn) {
-            toggleBtn.onclick = () => this.toggleDarkMode();
-        }
+        document.getElementById('darkToggleBtn').onclick = () => {
+            this.toggleDarkMode();
+            const btn = document.getElementById('darkToggleBtn');
+            if (btn) btn.textContent = this.darkMode ? '☀️' : '🌙';
+        };
 
-        // カードクリックイベント
-        document.querySelectorAll('.tool-card').forEach(card => {
-            card.onclick = () => {
-                const toolId = card.dataset.toolId;
-                this.loadTool(toolId);
-            };
+        const grid = document.getElementById('homeGrid');
+        
+        // 並び替え対象のIDリストを生成（非表示フラグがないもの）
+        const sortedIds = Object.keys(this.tools).filter(id => !this.tools[id].hideInMenu);
+
+        // 認証キーの存在チェック
+        const hasToken = !!localStorage.getItem('dqx_test_token');
+
+        // ホーム画面でのツールカード生成
+        sortedIds.forEach(toolId => {
+            const tool = this.tools[toolId];
+            const card = document.createElement('div');
+            card.className = 'tool-card';
+            card.dataset.id = toolId;
+            card.innerHTML = `
+                <div class="tool-card-icon">${tool.icon}</div>
+                <div class="tool-card-name">${tool.name}</div>
+                <div class="tool-card-desc">${tool.desc || ''}</div>
+            `;
+            
+            // 非公開テストツール、かつ認証キーがない場合に見た目変更用クラスを付与（クリックは可能）
+            if (tool.testToolConfig && !hasToken) {
+                card.classList.add('test-tool-locked');
+            }
+            
+            // タップ時の挙動（既存の認証ロジックなどへそのまま流す）
+            card.onclick = () => this.switchTool(toolId);
+            grid.appendChild(card);
         });
-        
-        // SortableJS を初期化（ドラッグ＆ドロップ）
-        const homeGrid = this.container.querySelector('.home-grid');
-        if (homeGrid && typeof Sortable !== 'undefined') {
-            if (this.sortableInstance) {
-                this.sortableInstance.destroy();
-            }
-            this.sortableInstance = new Sortable(homeGrid, {
-                animation: 150,
-                onEnd: () => {
-                    const newOrder = [...homeGrid.children].map(card => card.dataset.toolId);
-                    localStorage.setItem('dqx_card_order', JSON.stringify(newOrder));
-                }
-            });
-        }
     },
 
-    renderToolMenu: function() {
-        const isMobile = this.isMobile();
-
-        // hideInMenu が true のツールは除外
-        const menuEntries = Object.entries(this.tools).filter(([id, tool]) => !tool.hideInMenu);
-
-        const menuButtons = menuEntries.map(([id, tool]) => {
-            const icon = tool.icon || '🔧';
-            const name = tool.name;
-            const isActive = (this.currentTool === id);
-            return `
-                <button class="tool-menu-btn ${isActive ? 'active' : ''}" data-tool-id="${id}">
-                    ${icon}<span class="menu-btn-label">${name}</span>
-                </button>
-            `;
-        }).join('');
-
-        const oldBar = document.getElementById('tool-menu-bar');
-        if (oldBar) oldBar.remove();
-
-        const menuBar = document.createElement('div');
-        menuBar.id = 'tool-menu-bar';
-        
-        if (isMobile) {
-            // スマホ：左スクロール＋右固定レイアウト
-            menuBar.className = 'tool-menu-bottom';
-            menuBar.innerHTML = `
-                <div class="tool-menu-scroll">
-                    ${menuButtons}
-                </div>
-                <div class="tool-menu-fixed">
-                    <button class="tool-menu-btn home-btn" data-action="home">🏠<span class="menu-btn-label">ホーム</span></button>
-                    <button class="tool-menu-btn dark-mode-btn" data-action="dark">${this.darkMode ? '☀️' : '🌙'}<span class="menu-btn-label">${this.darkMode ? 'ライト' : 'ダーク'}</span></button>
-                </div>
-            `;
-            
-            // イベント設定
-            const homeBtn = menuBar.querySelector('[data-action="home"]');
-            if (homeBtn) homeBtn.onclick = () => this.goHome();
-            
-            const darkBtn = menuBar.querySelector('[data-action="dark"]');
-            if (darkBtn) darkBtn.onclick = () => this.toggleDarkMode();
-            
-            menuBar.querySelectorAll('.tool-menu-scroll .tool-menu-btn').forEach(btn => {
-                btn.onclick = () => {
-                    const toolId = btn.dataset.toolId;
-                    if (toolId && this.currentTool !== toolId) {
-                        this.loadTool(toolId);
-                    }
-                };
-            });
-        } else {
-            // PC：右サイドバー（縦スクロール＋固定ボタン）
-            menuBar.className = 'tool-menu-sidebar';
-            menuBar.innerHTML = `
-                <div class="tool-menu-sidebar-scroll">
-                    ${menuButtons}
-                </div>
-                <div class="tool-menu-sidebar-fixed">
-                    <button class="tool-menu-btn home-btn" data-action="home">🏠<span class="menu-btn-label">ホーム</span></button>
-                    <button class="tool-menu-btn dark-mode-btn" data-action="dark">${this.darkMode ? '☀️' : '🌙'}<span class="menu-btn-label">${this.darkMode ? 'ライト' : 'ダーク'}</span></button>
-                </div>
-            `;
-            
-            document.body.appendChild(menuBar);
-            
-            // イベント設定
-            const homeBtn = menuBar.querySelector('[data-action="home"]');
-            if (homeBtn) homeBtn.onclick = () => this.goHome();
-            
-            const darkBtn = menuBar.querySelector('[data-action="dark"]');
-            if (darkBtn) darkBtn.onclick = () => this.toggleDarkMode();
-            
-            menuBar.querySelectorAll('.tool-menu-sidebar-scroll .tool-menu-btn').forEach(btn => {
-                btn.onclick = () => {
-                    const toolId = btn.dataset.toolId;
-                    if (toolId && this.currentTool !== toolId) {
-                        this.loadTool(toolId);
-                    }
-                };
-            });
-        }
-        
-        document.body.appendChild(menuBar);
-
-        const toolContainer = document.getElementById('dqx-tool-container');
-        if (toolContainer) {
-            if (isMobile) {
-                toolContainer.style.paddingBottom = '70px';
-                toolContainer.style.paddingRight = '0';
-            } else {
-                toolContainer.style.paddingBottom = '0';
-                toolContainer.style.paddingRight = '80px';
-            }
-        }
-    },
-
-    addDarkModeButtonToMenu: function() {
-        // PC版では既に固定ボタンとして実装済みのため、この関数は使用しない
-        // ただし互換性のために残しておく
-    },
-
-    // テストツール読み込み用の共通関数
-    loadTestTool: async function(toolId, tool) {
-        const config = tool.testToolConfig;
-        if (!config) return false;
-        
-        let token = localStorage.getItem('dqx_test_token');
-        if (!token) {
-            token = prompt(`🔑 ${tool.name}を使用するためのGitHub APIトークンを入力してください（開発者専用）`);
-            if (!token) return false;
-            localStorage.setItem('dqx_test_token', token);
-        }
-        
-        const loadingDiv = document.createElement('div');
-        loadingDiv.textContent = '読み込み中...';
-        loadingDiv.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#000;color:#fff;padding:20px;border-radius:10px;z-index:10001;';
-        document.body.appendChild(loadingDiv);
-        
-        try {
-            const res = await fetch(`https://api.github.com/repos/rre1111/dqx-private-api/contents/${config.filename}`, {
-                headers: {
-                    'Authorization': `token ${token}`,
-                    'Accept': 'application/vnd.github.v3.raw'
-                }
-            });
-            if (!res.ok) throw new Error(`HTTP ${res.status}`);
-            const code = await res.text();
-            
-            const script = document.createElement('script');
-            script.textContent = code;
-            document.head.appendChild(script);
-            
-            loadingDiv.remove();
-            
-            if (typeof window[config.globalName] !== 'undefined' && typeof window[config.globalName].render === 'function') {
-                this.container.innerHTML = '';
-                const newContainer = document.createElement('div');
-                newContainer.id = 'dqx-tool-container';
-                this.container.appendChild(newContainer);
-                window[config.globalName].render('#dqx-tool-container');
-                this.currentTool = toolId;
-                this.renderToolMenu();
-                return true;
-            } else {
-                throw new Error('ツール読み込み失敗');
-            }
-        } catch(e) {
-            loadingDiv.remove();
-            console.error(e);
-            alert(`認証失敗: ${e.message}`);
-            localStorage.removeItem('dqx_test_token');
-            this.goHome();
-            return false;
-        }
-    },
-
-    loadTool: async function(toolId) {
+    switchTool: function(toolId) {
         const tool = this.tools[toolId];
         if (!tool) return;
-        if (this.currentTool === toolId) return;
 
-        // テストツール（hideInMenu + testToolConfig）は特別処理
-        if (tool.hideInMenu && tool.testToolConfig) {
-            this.destroyCurrentTool();
-            const oldContainer = document.getElementById('dqx-tool-container');
-            if (oldContainer) oldContainer.remove();
-            await this.loadTestTool(toolId, tool);
-            return;
+        // 非公開テストツールの認証要求チェック
+        if (tool.testToolConfig) {
+            const token = localStorage.getItem('dqx_test_token');
+            if (!token) {
+                // 設定画面からトークン入力を促す、または認証用のダイアログを開く
+                const inputToken = prompt('🔒 このツールはデベロッパー専用のテストツールです。\n利用するには認証トークンを入力してください:');
+                if (inputToken) {
+                    localStorage.setItem('dqx_test_token', inputToken);
+                    alert('トークンを保存しました。もう一度ツールを起動してください。');
+                    this.renderHome();
+                }
+                return; // ここで止める（既存ロジック）
+            }
         }
 
         this.destroyCurrentTool();
+        this.currentTool = toolId;
 
-        const oldContainer = document.getElementById('dqx-tool-container');
-        if (oldContainer) oldContainer.remove();
+        this.container.innerHTML = `<div style="text-align:center;padding:40px;">⏳ ツールを読み込み中...</div>`;
 
-        const toolContainer = document.createElement('div');
-        toolContainer.id = 'dqx-tool-container';
-        this.container.appendChild(toolContainer);
+        // 共通メニューバーの生成（サイドまたはボトム）
+        this.renderMenuBar();
 
-        const loadingImages = [
-            { src: './images/dqx_loading.jpg',  weight: 30 },
-            { src: './images/dqx_loading2.jpg', weight: 25 },
-            { src: './images/dqx_loading3.jpg', weight: 25 },
-            { src: './images/dqx_loading4.jpg', weight: 18 },
-            { src: './images/dqx_loading5.jpg', weight: 2  },
-        ];
-        const totalWeight = loadingImages.reduce((sum, img) => sum + img.weight, 0);
-        let rand = Math.random() * totalWeight;
-        const randomImage = loadingImages.find(img => (rand -= img.weight) < 0).src;
-
-        const loadingDiv = document.createElement('div');
-        loadingDiv.id = 'dqx-loading';
-        loadingDiv.style.cssText = `
-            position: fixed;
-            top: 0; left: 0;
-            width: 100%; height: 100%;
-            background: rgba(0, 0, 0, 0.85);
-            z-index: 20000;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            flex-direction: column;
-            transition: opacity 0.3s;
-        `;
-        loadingDiv.innerHTML = `
-            <div style="text-align: center;">
-                <div style="margin-bottom: 24px;">
-                    <img src="${randomImage}" style="width: 320px; max-width: 80vw; height: auto; opacity: 0.95;" onerror="this.style.display='none'">
-                </div>
-                <div id="dqx-loading-text" style="color: white; font-size: 1.3rem; font-weight: bold; margin-bottom: 20px;">
-                    読み込み中...
-                </div>
-                <div style="color: #aaa; font-size: 0.7rem; max-width: 90%; margin: 0 auto; line-height: 1.5;">
-                    このページで利用している株式会社スクウェア・エニックスを代表とする共同著作者が権利を所有する画像の転載・配布は禁止いたします。<br>
-                    (C) ARMOR PROJECT/BIRD STUDIO/SQUARE ENIX All Rights Reserved.
-                </div>
-            </div>
-        `;
-        document.body.appendChild(loadingDiv);
-
-        await new Promise(resolve => setTimeout(resolve, 1000));
-
-        try {
-            const oldScript = document.querySelector(`script[src*="${tool.url.split('/').pop()}"]`);
-            if (oldScript) oldScript.remove();
-
-            await this.loadScript(tool.url);
-
-            const fn = tool.renderFn
-                .split('.')
-                .reduce((obj, key) => obj && obj[key], window);
-
-            loadingDiv.style.opacity = '0';
-            await new Promise(resolve => setTimeout(resolve, 300));
-            loadingDiv.remove();
-
-            if (typeof fn === 'function') {
-                this.container.innerHTML = '';
-                const newToolContainer = document.createElement('div');
-                newToolContainer.id = 'dqx-tool-container';
-                this.container.appendChild(newToolContainer);
-
-                fn('#dqx-tool-container');
-                this.currentTool = toolId;
-                this.renderToolMenu();
-            } else {
-                toolContainer.innerHTML = '<div style="color: red; text-align: center; padding: 40px;">エラー: ツールの読み込みに失敗しました</div>';
-                this.goHome();
-            }
-        } catch(e) {
-            loadingDiv.remove();
-            console.error('ツール読み込みエラー:', e);
-            toolContainer.innerHTML = '<div style="color: red; text-align: center; padding: 40px;">エラー: ツールの読み込みに失敗しました</div>';
-            this.goHome();
+        if (tool.url) {
+            this.loadScript(tool.url).then(() => {
+                this.executeRender(tool);
+            }).catch(err => {
+                console.error(err);
+                this.container.innerHTML = `<div style="color:red;padding:20px;">ツールの読み込みに失敗しました。</div>`;
+            });
+        } else {
+            this.executeRender(tool);
         }
     },
 
-    goHome: function() {
-        this.destroyCurrentTool();
+    executeRender: function(tool) {
+        this.container.innerHTML = `<div id="tool-runtime-container"></div>`;
+        if (tool.renderFn) {
+            try {
+                const parts = tool.renderFn.split('.');
+                let fn = window;
+                parts.forEach(p => { fn = fn[p]; });
+                if (typeof fn === 'function') {
+                    fn('#tool-runtime-container');
+                } else if (tool.testToolConfig) {
+                    // 非公開側から注入されたロジックを実行するケース
+                    const gName = tool.testToolConfig.globalName;
+                    if (window[gName] && typeof window[gName].render === 'function') {
+                        window[gName].render('#tool-runtime-container');
+                    } else {
+                        this.container.innerHTML = `<div style="padding:20px;">🔒 認証は成功していますが、ロジックが注入されていません。</div>`;
+                    }
+                }
+            } catch (e) {
+                console.error(e);
+                this.container.innerHTML = `<div style="color:red;padding:20px;">初期化エラーが発生しました。</div>`;
+            }
+        } else if (tool.testToolConfig) {
+            // トークンがある場合の非公開ツールインジェクション実行
+            const gName = tool.testToolConfig.globalName;
+            if (window[gName] && typeof window[gName].render === 'function') {
+                window[gName].render('#tool-runtime-container');
+            } else {
+                this.container.innerHTML = `<div style="padding:20px;">🔒 テスト環境が準備されていません（スクリプト未注入）</div>`;
+            }
+        }
+    },
 
-        const menuBar = document.getElementById('tool-menu-bar');
-        if (menuBar) menuBar.remove();
+    renderMenuBar: function() {
+        const isMobile = this.isMobile();
+        const menu = document.createElement('div');
+        menu.className = isMobile ? 'tool-menu-bottom' : 'tool-menu-sidebar';
 
-        const oldContainer = document.getElementById('dqx-tool-container');
-        if (oldContainer) oldContainer.remove();
+        let menuHtml = `
+            <div class="menu-item-home" id="menuHomeBtn">🏠 <span>ホーム</span></div>
+            <div class="menu-items-scroll">
+        `;
 
-        const newContainer = document.createElement('div');
-        newContainer.id = 'dqx-tool-container';
-        this.container.appendChild(newContainer);
+        Object.keys(this.tools).forEach(id => {
+            const t = this.tools[id];
+            if (t.hideInMenu) return; // ツールバーに隠す設定のものは除外
+            const activeClass = (id === this.currentTool) ? 'active' : '';
+            menuHtml += `<div class="menu-item ${activeClass}" data-id="${id}">${t.icon}<span>${t.name}</span></div>`;
+        });
 
-        const scripts = document.querySelectorAll('script[src*="testtool"]');
-        scripts.forEach(script => script.remove());
+        menuHtml += `</div>`;
+        menu.innerHTML = menuHtml;
+        document.body.appendChild(menu);
 
-        this.currentTool = null;
-        this.showLauncher();
+        if (isMobile) {
+            document.body.style.paddingBottom = '60px';
+            document.body.style.paddingLeft = '0';
+        } else {
+            document.body.style.paddingLeft = '90px';
+            document.body.style.paddingBottom = '0';
+        }
+
+        document.getElementById('menuHomeBtn').onclick = () => this.renderHome();
+        
+        menu.querySelectorAll('.menu-item').forEach(btn => {
+            btn.onclick = () => {
+                const id = btn.dataset.id;
+                this.switchTool(id);
+            };
+        });
     },
 
     destroyCurrentTool: function() {
-        if (this.currentTool) {
+        if (this.currentTool && this.tools[this.currentTool]) {
             const tool = this.tools[this.currentTool];
-            if (tool) {
-                const globalName = tool.renderFn.split('.')[0];
+            if (tool.renderFn) {
+                const parts = tool.renderFn.split('.');
+                if (parts.length > 0) {
+                    const objName = parts[0];
+                    if (window[objName] && typeof window[objName].destroy === 'function') {
+                        window[objName].destroy();
+                    }
+                }
+            }
+            if (tool.testToolConfig) {
+                const globalName = tool.testToolConfig.globalName;
                 if (window[globalName] && typeof window[globalName].destroy === 'function') {
                     window[globalName].destroy();
                 }
