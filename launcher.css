@@ -105,6 +105,12 @@ html, body {
     text-size-adjust: 100% !important;
 }
 
+/* グレーアウト */
+.tool-card-disabled {
+    opacity: 0.5;
+    filter: grayscale(0.3);
+}
+
 .home-footer {
     text-align: center;
     padding: 16px;
