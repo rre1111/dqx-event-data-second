@@ -1,4 +1,8 @@
 /* ========== ランチャー共通スタイル ========== */
+html, body {
+    overscroll-behavior-y: contain;
+    overscroll-behavior-x: none;
+}
 
 /* ----- ホーム画面 ----- */
 .home-container {
@@ -87,6 +91,8 @@
     color: #0066cc;
     line-height: 1.2;
     display: block;
+    -webkit-text-size-adjust: 100% !important;
+    text-size-adjust: 100% !important;
 }
 
 .tool-card-desc {
@@ -95,6 +101,8 @@
     margin: 0;
     line-height: 1.2;
     display: block;
+    -webkit-text-size-adjust: 100% !important;
+    text-size-adjust: 100% !important;
 }
 
 .home-footer {
@@ -116,12 +124,47 @@
     backdrop-filter: blur(10px);
     display: flex;
     flex-direction: column;
-    align-items: center;
-    padding: 20px 5px;
-    gap: 12px;
     z-index: 1000;
     border-left: 1px solid rgba(255, 255, 255, 0.1);
     box-shadow: -2px 0 10px rgba(0, 0, 0, 0.1);
+}
+
+/* 右サイドバー内のスクロールエリア */
+.tool-menu-sidebar-scroll {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    padding: 20px 5px;
+    scrollbar-width: thin;
+}
+
+.tool-menu-sidebar-scroll::-webkit-scrollbar {
+    width: 3px;
+}
+
+.tool-menu-sidebar-scroll::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 3px;
+}
+
+.tool-menu-sidebar-scroll::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 3px;
+}
+
+/* 右サイドバー内の固定ボタンエリア */
+.tool-menu-sidebar-fixed {
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 5px;
+    border-top: 1px solid rgba(255, 255, 255, 0.2);
 }
 
 /* ----- ツールメニュー（スマホ:下部） ----- */
@@ -133,12 +176,63 @@
     background: rgba(30, 30, 50, 0.95);
     backdrop-filter: blur(10px);
     display: flex;
-    justify-content: space-around;
-    padding: 8px 12px;
-    gap: 5px;
     z-index: 1000;
     border-top: 1px solid rgba(255, 255, 255, 0.1);
     box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
+}
+
+/* 左側のスクロールエリア */
+.tool-menu-scroll {
+    flex: 1;
+    overflow-x: auto;
+    overflow-y: hidden;
+    display: flex;
+    gap: 5px;
+    padding: 8px 8px 8px 12px;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+}
+
+.tool-menu-scroll::-webkit-scrollbar {
+    height: 3px;
+}
+
+.tool-menu-scroll::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 3px;
+}
+
+.tool-menu-scroll::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 3px;
+}
+
+/* 右側の固定ボタンエリア */
+.tool-menu-fixed {
+    flex-shrink: 0;
+    display: flex;
+    gap: 5px;
+    padding: 8px 12px 8px 8px;
+    border-left: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.tool-menu-bottom .tool-menu-btn {
+    flex-shrink: 0;
+    flex-direction: column;
+    gap: 0;
+    padding: 8px 10px;
+    font-size: 20px;
+    min-width: 55px;
+}
+
+.tool-menu-bottom .menu-btn-label {
+    display: block;
+    font-size: 9px;
+    margin-top: 2px;
+}
+
+.tool-menu-fixed .tool-menu-btn {
+    min-width: 50px;
 }
 
 /* ----- メニューボタン共通 ----- */
