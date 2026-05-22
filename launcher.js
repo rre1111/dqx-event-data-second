@@ -1,6 +1,6 @@
 // ==========ツールランチャー（改造版）=========
 // ========== バージョン管理 ==========
-const APP_VERSION = '3.0.2β';
+const APP_VERSION = '3.0.3β'; // バグ修正に伴いバージョンアップ
 
 // バージョン情報をグローバルに公開（HTML側と整合性チェック用）
 window.LAUNCHER_VERSION = APP_VERSION;
@@ -111,8 +111,8 @@ const DQXTools = {
 
         const grid = document.getElementById('homeGrid');
         
-        // 並び替え対象のIDリストを生成（非表示フラグがないもの）
-        const sortedIds = Object.keys(this.tools).filter(id => !this.tools[id].hideInMenu);
+        // 【修正箇所】ホーム画面には登録されているすべてのツールIDを出す（hideInMenuで弾かない）
+        const sortedIds = Object.keys(this.tools);
 
         // 認証キーの存在チェック
         const hasToken = !!localStorage.getItem('dqx_test_token');
@@ -129,7 +129,7 @@ const DQXTools = {
                 <div class="tool-card-desc">${tool.desc || ''}</div>
             `;
             
-            // 非公開テストツール、かつ認証キーがない場合に見た目変更用クラスを付与（クリックは可能）
+            // 非公開テストツール、かつ認証キーがない場合に見た目変更用クラスを付与
             if (tool.testToolConfig && !hasToken) {
                 card.classList.add('test-tool-locked');
             }
@@ -155,7 +155,7 @@ const DQXTools = {
                     alert('トークンを保存しました。もう一度ツールを起動してください。');
                     this.renderHome();
                 }
-                return; // ここで止める（既存ロジック）
+                return; // ここで止める
             }
         }
 
@@ -224,7 +224,7 @@ const DQXTools = {
 
         Object.keys(this.tools).forEach(id => {
             const t = this.tools[id];
-            if (t.hideInMenu) return; // ツールバーに隠す設定のものは除外
+            if (t.hideInMenu) return; // ツールバーには隠す設定のものを除外
             const activeClass = (id === this.currentTool) ? 'active' : '';
             menuHtml += `<div class="menu-item ${activeClass}" data-id="${id}">${t.icon}<span>${t.name}</span></div>`;
         });
