@@ -1,6 +1,6 @@
 // ==========ツールランチャー（改造版）=========
 // ========== バージョン管理 ==========
-const APP_VERSION = '3.0.0β';
+const APP_VERSION = '3.0.1β';
 
 // バージョン情報をグローバルに公開（HTML側と整合性チェック用）
 window.LAUNCHER_VERSION = APP_VERSION;
@@ -42,28 +42,13 @@ const DQXTools = {
         }
 
         // ========== Pull to Refresh（スワイプ引っ張り再読み込み）禁止 ==========
-        let touchStartX = 0;
         let touchStartY = 0;
-        let touchStartAtTop = false;
-
-        function isPageAtTop() {
-            const root = document.scrollingElement || document.documentElement;
-            return root.scrollTop <= 0;
-        }
-
         document.addEventListener('touchstart', (e) => {
-            touchStartX = e.touches[0].clientX;
             touchStartY = e.touches[0].clientY;
-            touchStartAtTop = isPageAtTop();
         }, { passive: false });
-
         document.addEventListener('touchmove', (e) => {
-            if (!touchStartAtTop) return;
-            const touchX = e.touches[0].clientX;
             const touchY = e.touches[0].clientY;
-            const deltaX = Math.abs(touchX - touchStartX);
-            const deltaY = touchY - touchStartY;
-            if (deltaY > 0 && deltaY > deltaX) {
+            if (touchY > touchStartY && window.scrollY === 0) {
                 e.preventDefault();
             }
         }, { passive: false });
