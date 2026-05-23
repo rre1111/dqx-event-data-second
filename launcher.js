@@ -1,6 +1,6 @@
 // ==========ツールランチャー（改造版）=========
 // ========== バージョン管理 ==========
-const APP_VERSION = '3.0.8β';
+const APP_VERSION = '3.0.5β';
 
 // バージョン情報をグローバルに公開（HTML側と整合性チェック用）
 window.LAUNCHER_VERSION = APP_VERSION;
@@ -42,7 +42,16 @@ const DQXTools = {
         }
 
         // ========== Pull to Refresh（スワイプ引っ張り再読み込み）禁止 ==========
-        // CSSの overscroll-behavior: none; で対応するため、JSでの処理は不要
+        let touchStartY = 0;
+        document.addEventListener('touchstart', (e) => {
+            touchStartY = e.touches[0].clientY;
+        }, { passive: false });
+        document.addEventListener('touchmove', (e) => {
+            const touchY = e.touches[0].clientY;
+            if (touchY > touchStartY && window.scrollY === 0) {
+                e.preventDefault();
+            }
+        }, { passive: false });
 
         // ========== ストレージキーのクリーンアップ（不正なキーを削除） ==========
         this.cleanupStorage();
