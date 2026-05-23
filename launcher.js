@@ -1,6 +1,6 @@
 // ==========ツールランチャー（改造版）=========
 // ========== バージョン管理 ==========
-const APP_VERSION = '3.0.5β';
+const APP_VERSION = '3.0.6β';
 
 // バージョン情報をグローバルに公開（HTML側と整合性チェック用）
 window.LAUNCHER_VERSION = APP_VERSION;
@@ -42,14 +42,32 @@ const DQXTools = {
         }
 
         // ========== Pull to Refresh（スワイプ引っ張り再読み込み）禁止 ==========
+        // 改良版：一度上に動かしても下に戻した時に正しく防止する
         let touchStartY = 0;
+        let minTouchY = 0;
+        
         document.addEventListener('touchstart', (e) => {
-            touchStartY = e.touches[0].clientY;
+            // eruda デバッグツール内は除外
+            const isErudaElement = e.target.closest('.eruda-root') || e.target.closest('[class*="eruda"]');
+            if (!isErudaElement) {
+                touchStartY = e.touches[0].clientY;
+                minTouchY = touchStartY;
+            }
         }, { passive: false });
+        
         document.addEventListener('touchmove', (e) => {
-            const touchY = e.touches[0].clientY;
-            if (touchY > touchStartY && window.scrollY === 0) {
-                e.preventDefault();
+            // eruda デバッグツール内は除外
+            const isErudaElement = e.target.closest('.eruda-root') || e.target.closest('[class*="eruda"]');
+            if (!isErudaElement) {
+                const currentY = e.touches[0].clientY;
+                // 指が上に動いたら最小値を更新
+                if (currentY < minTouchY) {
+                    minTouchY = currentY;
+                }
+                // 条件：ページ最上部で、現在のYが開始位置より下（引っ張っている）かつ、最小値より下（戻りじゃない）
+                if (window.scrollY === 0 && currentY > touchStartY && currentY > minTouchY) {
+                    e.preventDefault();
+                }
             }
         }, { passive: false });
 
