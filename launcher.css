@@ -3,10 +3,6 @@ html, body {
     overscroll-behavior-y: contain;
     overscroll-behavior-x: none;
 }
-/* Pull to Refresh を完全無効化 */
-body {
-    overscroll-behavior: none;
-}
 /* ----- ホーム画面 ----- */
 .home-container {
     max-width: 900px;
