@@ -1,6 +1,6 @@
 // ==========ツールランチャー（改造版）=========
 // ========== バージョン管理 ==========
-const APP_VERSION = '3.1.0β';
+const APP_VERSION = '3.1.1β';
 
 // バージョン情報をグローバルに公開（HTML側と整合性チェック用）
 window.LAUNCHER_VERSION = APP_VERSION;
@@ -82,7 +82,8 @@ const DQXTools = {
             'dqx_chars_final10',
             'dqx_disabled_final10',
             'dqx_hidden_tasks_v1',
-            'dqx_limited_checks_v3'
+            'dqx_limited_checks_v3',
+            'dqx_lap_notify'
         ];
 
         // ========== localStorageのクリーンアップ ==========
