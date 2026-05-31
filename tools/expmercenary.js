@@ -1,9 +1,10 @@
-// ========== 傭兵用多機能ツール ver1.6.2 ==========
+// ========== 傭兵用多機能ツール ver1.6.3 ==========
 // 変更履歴:
 // - 履歴レイアウト改修: 削除ボタンを時間の隣に移動
 // - LAP超過音声通知機能追加（デフォルトOFF、ビープ音1800Hz→1600Hz）
 // - スマホ表示対応のため+/-ボタン削除（プルダウンのみ）
 // - クマ選択時の最適モンスターを「ダースリカント」に修正
+// - 最適モンスターボタン押下時フィードバック（同じ時:緑、変わる時:赤）
 
 (function (global) {
 
@@ -17,7 +18,7 @@
     killCount: 0,
     optCallCount: 1,
     calcLockedUntil: 0,
-    ritaOrKuma: "returner",  // "returner" または "dearthlicant"
+    ritaOrKuma: "returner",
     lapNotifyEnabled: false,
     lapNotifyFired: false,
     audioCtx: null,
@@ -170,7 +171,7 @@
       if (!result) return "durahan";
 
       if (result === "rita_or_kuma") {
-        return this.ritaOrKuma;  // "returner" または "dearthlicant"
+        return this.ritaOrKuma;
       }
       return result;
     },
@@ -1034,9 +1035,25 @@
       };
 
       this.$("btnOptMonster").onclick = () => {
+        const currentMonster = this.$("ms").value;
         const monsterId = this.lookupOptimalMonster();
-        this.$("ms").value = monsterId;
-        this.updateUI(true);
+        const msSelect = this.$("ms");
+        
+        if (currentMonster === monsterId) {
+          msSelect.style.transition = "background-color 0.1s";
+          msSelect.style.backgroundColor = "#ccffcc";
+          setTimeout(() => {
+            msSelect.style.backgroundColor = "";
+          }, 200);
+        } else {
+          msSelect.style.transition = "background-color 0.1s";
+          msSelect.style.backgroundColor = "#ffcccc";
+          setTimeout(() => {
+            msSelect.style.backgroundColor = "";
+            msSelect.value = monsterId;
+            this.updateUI(true);
+          }, 100);
+        }
       };
 
       this.$("btnTimerStop").onclick = () => {
