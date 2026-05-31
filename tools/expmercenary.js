@@ -1,54 +1,218 @@
-// ========== 傭兵用多機能ツール ver1.5.5 ==========
+// ========== 傭兵用多機能ツール ver1.6.0 ==========
+// 変更履歴:
+// - 履歴レイアウト改修: 削除ボタンを時間の隣に移動、呼び数+ボタン追加
+// - LAP超過音声通知機能追加（デフォルトOFF、localStorage保存）
 
 (function (global) {
-  // 既存のツールと変数が被らないように独自の名前空間でラップ
 
   const ExpCalc = {
     // ----- タイマー状態 -----
-    timer: null,         // setInterval の戻り値
-    startTime: 0,        // タイマー開始時刻（ms）
-    pauseSec: 0,         // 一時停止時の経過秒数
-    lastLapSec: 0,       // 最後のLAPを記録した秒数
-    jobOffsetSec: 0,     // 転職ボタン押下による加算オフセット（秒）
-    passbookOffset: 0,   // 通帳引き出し済み累計経験値
-
-    // ----- カウンタ -----
-    killCount: 0,        // 加算ボタンを押した合計回数
-    optCallCount: 1,     // 最適な呼び数（A〜L の数値）
-    calcLockedUntil: 0,  // 加算ボタンのロック解除時刻（ms）
+    timer: null,
+    startTime: 0,
+    pauseSec: 0,
+    lastLapSec: 0,
+    jobOffsetSec: 0,
+    passbookOffset: 0,
+    killCount: 0,
+    optCallCount: 1,
+    calcLockedUntil: 0,
+    ritaOrKuma: "returner",
+    lapNotifyEnabled: false,
+    lapNotifyFired: false,
+    audioCtx: null,
 
     // ----- 定数 -----
-    /** 討伐数の表示ラベル（インデックス 1〜12 = A〜L） */
     CALL_LABELS: ["", "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L"],
 
-    /** お供の種類ごとの基本経験値 */
     PARTNER_EXP: {
       none:     0,
-      mk:       48240, // メタキン
-      hm1:       12060, // はぐメタ1
-      hm2:       24120, // はぐメタ2
-      hm3:       36180, // はぐメタ3
-      tappitsu:  4800, // 達筆
-      gn:        2240, // ゲノミー
-      sn:        1120, // 仙人
-      zucchini:  9010, // ズッキ祖（ダースリカント専用）
+      mk:       48240,
+      hm1:      12060,
+      hm2:      24120,
+      hm3:      36180,
+      tappitsu: 4800,
+      gn:       2240,
+      sn:       1120,
+      zucchini: 9010,
     },
 
-    /** 通帳1Lv分の経験値 */
     EXP_PER_LV: 1589326,
 
-    // ----- ユーティリティ -----
+    CSV2_TABLE: (function () {
+      const rows = [
+        ["genki","×","×","×","通帳なし","durahan"],
+        ["genki","×","×","×","通帳1",  "durahan"],
+        ["genki","×","×","×","通帳2",  "durahan"],
+        ["genki","×","×","○","通帳なし","rita_or_kuma"],
+        ["genki","×","×","○","通帳1",  "rita_or_kuma"],
+        ["genki","×","×","○","通帳2",  "rita_or_kuma"],
+        ["genki","×","○","×","通帳なし","rita_or_kuma"],
+        ["genki","×","○","×","通帳1",  "durahan"],
+        ["genki","×","○","×","通帳2",  "durahan"],
+        ["genki","×","○","○","通帳なし","rita_or_kuma"],
+        ["genki","×","○","○","通帳1",  "rita_or_kuma"],
+        ["genki","×","○","○","通帳2",  "rita_or_kuma"],
+        ["genki","○","×","×","通帳なし","durahan"],
+        ["genki","○","×","×","通帳1",  "durahan"],
+        ["genki","○","×","×","通帳2",  "durahan"],
+        ["genki","○","×","○","通帳なし","durahan"],
+        ["genki","○","×","○","通帳1",  "durahan"],
+        ["genki","○","×","○","通帳2",  "durahan"],
+        ["genki","○","○","×","通帳なし","durahan"],
+        ["genki","○","○","×","通帳1",  "durahan"],
+        ["genki","○","○","×","通帳2",  "durahan"],
+        ["genki","○","○","○","通帳なし","durahan"],
+        ["genki","○","○","○","通帳1",  "durahan"],
+        ["genki","○","○","○","通帳2",  "durahan"],
+        ["bakushin","×","×","×","通帳なし","durahan"],
+        ["bakushin","×","×","×","通帳1",  "durahan"],
+        ["bakushin","×","×","×","通帳2",  "durahan"],
+        ["bakushin","×","×","○","通帳なし","durahan"],
+        ["bakushin","×","×","○","通帳1",  "durahan"],
+        ["bakushin","×","×","○","通帳2",  "durahan"],
+        ["bakushin","×","○","×","通帳なし","durahan"],
+        ["bakushin","×","○","×","通帳1",  "durahan"],
+        ["bakushin","×","○","×","通帳2",  "durahan"],
+        ["bakushin","×","○","○","通帳なし","durahan"],
+        ["bakushin","×","○","○","通帳1",  "durahan"],
+        ["bakushin","×","○","○","通帳2",  "durahan"],
+        ["bakushin","○","×","×","通帳なし","durahan"],
+        ["bakushin","○","×","×","通帳1",  "durahan"],
+        ["bakushin","○","×","×","通帳2",  "durahan"],
+        ["bakushin","○","×","○","通帳なし","durahan"],
+        ["bakushin","○","×","○","通帳1",  "durahan"],
+        ["bakushin","○","×","○","通帳2",  "durahan"],
+        ["bakushin","○","○","×","通帳なし","durahan"],
+        ["bakushin","○","○","×","通帳1",  "durahan"],
+        ["bakushin","○","○","×","通帳2",  "durahan"],
+        ["bakushin","○","○","○","通帳なし","rita_or_kuma"],
+        ["bakushin","○","○","○","通帳1",  "durahan"],
+        ["bakushin","○","○","○","通帳2",  "durahan"],
+      ];
+      const map = {};
+      rows.forEach(([elix,tr,ag,em,pb,result]) => {
+        const key = `${elix}|${tr}|${ag}|${em}|${pb}`;
+        map[key] = result;
+      });
+      return map;
+    })(),
 
-    /** ID でDOM要素を取得する */
+    CSV1_TABLE: (function () {
+      const rows = [
+        ["returner",false,false,false,true,false,"genki",11],
+        ["returner",false,false,true,true,false,"none",11],
+        ["returner",false,false,true,true,false,"genki",10],
+        ["returner",true,false,false,true,false,"genki",10],
+        ["returner",true,false,true,true,false,"none",10],
+        ["returner",true,false,true,true,false,"genki",8],
+        ["durahan",false,false,false,false,false,"genki",12],
+        ["durahan",false,false,false,false,true,"genki",12],
+        ["durahan",false,false,false,true,false,"none",9],
+        ["durahan",false,false,false,true,false,"genki",7],
+        ["durahan",false,false,false,true,true,"genki",12],
+        ["durahan",false,false,true,false,false,"none",12],
+        ["durahan",false,false,true,false,false,"genki",9],
+        ["durahan",false,false,true,false,true,"none",12],
+        ["durahan",false,false,true,false,true,"genki",9],
+        ["durahan",false,false,true,true,false,"none",7],
+        ["durahan",false,false,true,true,false,"genki",6],
+        ["durahan",false,false,true,true,false,"bakushin",11],
+        ["durahan",false,false,true,true,true,"none",12],
+        ["durahan",false,false,true,true,true,"genki",9],
+        ["durahan",false,true,false,true,false,"bakushin",11],
+        ["durahan",false,true,true,true,false,"genki",11],
+        ["durahan",false,true,true,true,false,"bakushin",9],
+        ["durahan",true,false,false,false,false,"genki",10],
+        ["durahan",true,false,false,false,true,"genki",10],
+        ["durahan",true,false,false,true,false,"none",8],
+        ["durahan",true,false,false,true,false,"genki",6],
+        ["durahan",true,false,false,true,false,"bakushin",12],
+        ["durahan",true,false,false,true,true,"genki",10],
+        ["durahan",true,false,true,false,false,"none",10],
+        ["durahan",true,false,true,false,false,"genki",8],
+        ["durahan",true,false,true,false,true,"none",10],
+        ["durahan",true,false,true,false,true,"genki",8],
+        ["durahan",true,false,true,true,false,"none",6],
+        ["durahan",true,false,true,true,false,"genki",5],
+        ["durahan",true,false,true,true,false,"bakushin",10],
+        ["durahan",true,false,true,true,true,"none",10],
+        ["durahan",true,false,true,true,true,"genki",8],
+        ["durahan",true,true,false,true,false,"genki",12],
+        ["durahan",true,true,false,true,false,"bakushin",10],
+        ["durahan",true,true,true,false,false,"bakushin",12],
+        ["durahan",true,true,true,false,true,"bakushin",12],
+        ["durahan",true,true,true,true,false,"none",12],
+        ["durahan",true,true,true,true,false,"genki",10],
+        ["durahan",true,true,true,true,false,"bakushin",9],
+        ["durahan",true,true,true,true,true,"bakushin",12],
+        ["dearthlicant",false,false,false,true,false,"genki",10],
+        ["dearthlicant",false,false,true,true,false,"none",10],
+        ["dearthlicant",false,false,true,true,false,"genki",8],
+        ["dearthlicant",true,false,false,true,false,"none",12],
+        ["dearthlicant",true,false,false,true,false,"genki",9],
+        ["dearthlicant",true,false,true,false,false,"genki",12],
+        ["dearthlicant",true,false,true,false,true,"genki",12],
+        ["dearthlicant",true,false,true,true,false,"none",9],
+        ["dearthlicant",true,false,true,true,false,"genki",7],
+        ["dearthlicant",true,false,true,true,true,"genki",12],
+      ];
+      const map = {};
+      rows.forEach(([mid,food,tr,em,ag,pb,elix,num]) => {
+        const key = `${mid}|${food}|${tr}|${em}|${ag}|${pb}|${elix}`;
+        map[key] = num;
+      });
+      return map;
+    })(),
+
+    lookupOptimalMonster: function () {
+      const elixir = document.querySelector('input[name="e_exp"]:checked')?.value || "none";
+      const tr     = this.$("tr").checked ? "○" : "×";
+      const ag     = this.$("ag").checked ? "○" : "×";
+      const em     = this.$("em").checked ? "○" : "×";
+      const pbVal  = this.$("pb").value;
+      const pb     = pbVal === "5000000" ? "通帳1" : pbVal === "10000000" ? "通帳2" : "通帳なし";
+
+      if (elixir === "none") return "durahan";
+
+      const key = `${elixir}|${tr}|${ag}|${em}|${pb}`;
+      const result = this.CSV2_TABLE[key];
+      if (!result) return "durahan";
+
+      if (result === "rita_or_kuma") {
+        return this.ritaOrKuma || "returner";
+      }
+      return result;
+    },
+
+    lookupOptimalCallCount: function () {
+      const ms     = this.$("ms").value;
+      const food   = this.$("fd").checked;
+      const tr     = this.$("tr").checked;
+      const em     = this.$("em").checked;
+      const ag     = this.$("ag").checked;
+      const pbVal  = this.$("pb").value;
+      const pb     = pbVal !== "0";
+      const elixir = document.querySelector('input[name="e_exp"]:checked')?.value || "none";
+
+      const key = `${ms}|${food}|${tr}|${em}|${ag}|${pb}|${elixir}`;
+      if (this.CSV1_TABLE[key] !== undefined) {
+        return this.CSV1_TABLE[key];
+      }
+
+      const isHighLimit = elixir === "bakushin" || tr;
+      const expLimit = isHighLimit ? 1499999 : 599999;
+      let opt = 1;
+      for (let i = 1; i <= 12; i++) {
+        if (this.calcExp(i).common < expLimit) opt = i;
+        else break;
+      }
+      return opt;
+    },
+
     $: function (id) {
       return document.getElementById(id);
     },
 
-    /**
-     * 秒数を "MM:SS.ss" 形式の文字列に変換する
-     * @param {number} sec
-     * @returns {string}
-     */
     formatTime: function (sec) {
       if (isNaN(sec) || sec < 0 || sec === Infinity) return "00:00.00";
       const minutes = Math.floor(sec / 60);
@@ -56,10 +220,6 @@
       return `${minutes.toString().padStart(2, "0")}:${seconds}`;
     },
 
-    /**
-     * 現在の設定から経験値レートを計算して返す
-     * @returns {number}
-     */
     getRate: function () {
       let rate = 1.0;
       if (this.$("fd").checked) rate += 0.3;
@@ -71,13 +231,6 @@
       return rate;
     },
 
-    /**
-     * 経験値を上限に合わせて丸め・クランプする
-     * 料理補正がある整数値は切り上げ+1、それ以外は切り上げ
-     * @param {number} val   生の経験値
-     * @param {number} limit 上限値
-     * @returns {number}
-     */
     applyLimit: function (val, limit) {
       const rounded = Math.round(val);
       const isNearInt = Math.abs(val - rounded) < 0.1;
@@ -85,19 +238,7 @@
       return Math.min(ceiled, limit);
     },
 
-    /**
-     * 討伐数・お供の種類から獲得経験値を計算する
-     * snap を渡すと DOM を一切参照せずスナップショット時点のバフで計算する（行の再計算用）
-     * @param {number} callCount   - 討伐数（1〜12）
-     * @param {string} [partnerKey="none"] - お供の種類キー
-     * @param {object|null} [snap=null]    - バフスナップショット（省略時は現在のDOM値を使用）
-     * @returns {{
-     *   total: number, common: number, angel: number, overflow: number,
-     *   rawTotalCapped: number, rawCommonCapped: number, rawAngelCapped: number
-     * }}
-     */
     calcExp: function (callCount, partnerKey = "none", snap = null) {
-      // モンスター基礎値の取得（snap.ms がある場合は option の data 属性から直接取得）
       let baseExp, bonusExp;
       if (snap) {
         const msOption = document.querySelector(`#ms option[value="${snap.ms}"]`);
@@ -109,7 +250,6 @@
         bonusExp = parseInt(selectedOption.dataset.bonus) || 0;
       }
 
-      // バフ値の取得（snap があればそちらを優先）
       const fd       = snap ? snap.fd       : this.$("fd").checked;
       const tr       = snap ? snap.tr       : this.$("tr").checked;
       const ag       = snap ? snap.ag       : this.$("ag").checked;
@@ -117,7 +257,6 @@
       const elixir   = snap ? snap.elixir   : (document.querySelector('input[name="e_exp"]:checked')?.value || "none");
       const pbVal    = snap ? snap.pb       : this.$("pb").value;
 
-      // レート計算（DOM を使わない純粋計算）
       let rate = 1.0;
       if (fd) rate += 0.3;
       if (elixir === "genki")    rate += 1;
@@ -125,7 +264,6 @@
       if (tr) rate += 1;
       if (em) rate += 1;
 
-      // applyLimit 内の料理フラグも snap 対応（一時的に fd を渡す）
       const applyLimitWithFd = (val, limit) => {
         const rounded   = Math.round(val);
         const isNearInt = Math.abs(val - rounded) < 0.1;
@@ -153,7 +291,7 @@
 
       if (hasPassbook) {
         const commonCapped = Math.min(rawTotalCommon, expLimit);
-        const angelCapped  = Math.min(rawTotalAngel,  angelLimit);
+        const angelCapped  = Math.min(rawTotalAngel, angelLimit);
         const totalOverflow = (rawTotalCommon - commonCapped) + (rawTotalAngel - angelCapped);
         const common = applyLimitWithFd(commonCapped, expLimit);
         const angel  = Math.min(Math.ceil(angelCapped), angelLimit);
@@ -181,24 +319,29 @@
       }
     },
 
-    /**
-     * 上限に達しない最大討伐数（最適呼び数）を求めて optCallCount に保存する
-     */
-    calcOptimalCallCount: function () {
-      const elixirType = document.querySelector('input[name="e_exp"]:checked')?.value || "none";
-      const isHighLimit = elixirType === "bakushin" || this.$("tr").checked;
-      const expLimit = isHighLimit ? 1499999 : 599999;
-      this.optCallCount = 1;
-      for (let i = 1; i <= 12; i++) {
-        if (this.calcExp(i).common < expLimit) this.optCallCount = i;
-        else break;
-      }
+    playLapWarning: function () {
+      try {
+        if (!this.audioCtx) {
+          this.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        const ctx = this.audioCtx;
+        const playBeep = (freq, startTime, duration) => {
+          const osc  = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.frequency.value = freq;
+          osc.type = 'triangle';
+          gain.gain.setValueAtTime(0.9, startTime);
+          gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
+          osc.start(startTime);
+          osc.stop(startTime + duration);
+        };
+        playBeep(2000, ctx.currentTime,        0.25);
+        playBeep(1800, ctx.currentTime + 0.35, 0.35);
+      } catch (e) {}
     },
 
-    /**
-     * 経験値表示・溢れ表示・最適呼び数を更新する
-     * @param {boolean} [autoSetCount=false] 討伐数セレクトを自動更新するか
-     */
     updateUI: function (autoSetCount = false) {
       const passbookLimit = parseInt(this.$("pb").value) || 0;
       const passbookArea  = this.$("passbookArea");
@@ -221,132 +364,29 @@
       this.$("overflowDisplay").textContent = `溢れ:${expResult.overflow.toLocaleString()}`;
     },
 
-    /**
-     * 履歴行の合計・平均タイム・想定玉給・通帳残量を更新する
-     */
-    updateTotal: function () {
-      let totalExp    = 0;
-      let passbookExp = 0;
-      let lapTimes    = [];
-      let penaltyMin  = 0;
-      let penaltyMax  = 0;
+    calcOptimalCallCount: function () {
+      this.optCallCount = this.lookupOptimalCallCount();
+    },
 
+    getAverageLapSec: function () {
+      const lapTimes = [];
       document.querySelectorAll(".exp-row").forEach(el => {
-        const expVal = parseInt(el.dataset.val) || 0;
-        if (!isNaN(expVal)) {
-          totalExp += expVal;
-          if (el.dataset.type === "pass") passbookExp += expVal;
-        }
-
-        // 平均タイム用のLAP収集（メイン行かつ有効なLAP時間のみ）
-        if (
-          el.dataset.lap &&
-          el.dataset.lap !== "-1" &&
-          el.dataset.type !== "lap_only" &&
-          el.dataset.type !== "job" &&
-          el.dataset.main === "true"
-        ) {
+        if (el.dataset.lap && el.dataset.lap !== "-1" &&
+            el.dataset.type !== "lap_only" && el.dataset.type !== "job" &&
+            el.dataset.main === "true") {
           lapTimes.push(parseFloat(el.dataset.lap));
         }
-
-        // デスペナ想定の計算
-        if (
-          el.dataset.desp === "true" &&
-          el.dataset.lap &&
-          el.dataset.lap !== "-1" &&
-          el.dataset.type !== "lap_only" &&
-          el.dataset.type !== "job"
-        ) {
-          const rawCapped = parseFloat(el.dataset.rawValCapped) || parseInt(el.dataset.val) || 0;
-          const lapSec    = parseFloat(el.dataset.lap);
-          if (lapSec > 6.45) {
-            penaltyMin += rawCapped * (6.45 / lapSec);
-            penaltyMax += rawCapped * (2.58 / lapSec);
-          }
-        }
       });
-
-      this.$("totalExpDisplay").textContent = Math.ceil(totalExp).toLocaleString();
-
-      // 通帳残量の更新
-      const passbookLimit = parseInt(this.$("pb").value) || 0;
-      if (passbookLimit > 0) {
-        const remaining = Math.max(0, passbookExp - this.passbookOffset);
-        this.$("passbookExpDisplay").textContent = Math.ceil(remaining).toLocaleString();
-      }
-
-      // デスペナ表示の更新
-      const hasPenalty = document.querySelectorAll('.exp-row[data-desp="true"]').length > 0;
-      const penaltyRef = this.$("penaltyRef");
-      if (hasPenalty && penaltyMin > 0) {
-        penaltyRef.style.display = "block";
-        penaltyRef.innerHTML =
-          `デスペナ想定:<br>${Math.ceil(penaltyMax).toLocaleString()}～${Math.ceil(penaltyMin).toLocaleString()}`;
-      } else {
-        penaltyRef.style.display = "none";
-      }
-
-      // 平均タイム・想定玉給の更新
-      if (lapTimes.length > 0) {
-        const avgSec = lapTimes.reduce((a, b) => a + b, 0) / lapTimes.length;
-        this.$("avgTimeDisplay").textContent = this.formatTime(avgSec);
-        if (avgSec > 0.01) {
-          const battles30min = Math.floor(1800 / avgSec);
-          const expPerBattle = totalExp / (lapTimes.length || 1);
-          this.$("estimatedGoldDisplay").textContent =
-            `${Math.round(expPerBattle * battles30min / 1e4)}万～` +
-            `${Math.round(expPerBattle * (battles30min + 1) / 1e4)}万`;
-        } else {
-          this.$("estimatedGoldDisplay").textContent = "--";
-        }
-      } else {
-        this.$("avgTimeDisplay").textContent = "--:--.--";
-        this.$("estimatedGoldDisplay").textContent = "--";
-      }
+      if (lapTimes.length === 0) return null;
+      return lapTimes.reduce((a, b) => a + b, 0) / lapTimes.length;
     },
 
-    /**
-     * お供セレクトの <option> HTML を生成する
-     * @param {string} monsterId - モンスターの value 値
-     * @returns {string}
-     */
-    getPartnerOptions: function (monsterId) {
-      const baseOptions =
-        `<option value="none">お供無</option>` +
-        `<option value="hm1">はぐメタ1</option>` +
-        `<option value="hm2">はぐメタ2</option>` +
-        `<option value="hm3">はぐメタ3</option>` +
-        `<option value="mk">メタキン</option>` +
-        `<option value="gn">ゲノミー</option>` +
-        `<option value="sn">仙人</option>`;
-      return monsterId === "dearthlicant"
-        ? baseOptions + `<option value="zucchini">ズッキ祖</option>`
-        : baseOptions;
-    },
-
-    /**
-     * 履歴に1行追加する
-     * @param {number|string} rowId        - 行番号（"LAP"/"JOB" の場合もある）
-     * @param {number}        callCount    - 討伐数
-     * @param {number}        expVal       - 表示する経験値
-     * @param {string}        rowType      - "normal"|"pass"|"angel"|"overflow"|"lap_only"|"job"
-     * @param {number}        elapsedSec   - 経過時間（秒）
-     * @param {number|null}   lapSec       - LAP秒数（null = LAP不明）
-     * @param {boolean}       [isMain=false]   - 平均タイム計算に使うメイン行か
-     * @param {number|null}   [rawCapped=null] - 上限適用前の生経験値（通帳計算用）
-     * @param {string|null}   [monsterId=null] - モンスターID（null = 現在の選択値）
-     * @param {boolean}       [hasDeathPenalty=false] - デスペナ中か
-     */
-    addRow: function (
-      rowId, callCount, expVal, rowType, elapsedSec, lapSec,
-      isMain = false, rawCapped = null, monsterId = null, hasDeathPenalty = false
-    ) {
+    addRow: function (rowId, callCount, expVal, rowType, elapsedSec, lapSec, isMain = false, rawCapped = null, monsterId = null, hasDeathPenalty = false) {
       const row = document.createElement("div");
       row.className = "exp-row h";
       row.dataset.val         = expVal;
       row.dataset.rawValCapped = rawCapped !== null ? rawCapped : expVal;
 
-      // 行が追加された時点のバフ設定スナップショット（再計算用）
       const snapshot = {
         fd: this.$("fd").checked,
         tr: this.$("tr").checked,
@@ -366,7 +406,6 @@
       row.dataset.monsterId   = monsterId || this.$("ms").value;
       row.dataset.desp        = hasDeathPenalty ? "true" : "false";
 
-      // 行タイプごとの表示テキスト・カラー
       const TYPE_LABEL = {
         pass:     "[通]",
         angel:    "[エ]",
@@ -383,21 +422,21 @@
         job:      "#00bcd4",
       };
 
-      // 行番号表示
       const rowIdHtml = rowId === "LAP"
         ? `<span class="row-id-lap">LAP</span>`
         : `<span class="row-id-normal">#${rowId}</span>`;
 
-      // タイム表示
-      const timeHtml =
+      const timeWithDelHtml =
+        `<div style="display:flex; align-items:center; gap:4px; width:85px;">` +
         `<div class="time-cell">` +
         `<div class="time-main">${this.formatTime(elapsedSec)}</div>` +
         (lapSec != null && lapSec >= 0
           ? `<div class="time-lap">L ${this.formatTime(lapSec)}</div>`
           : "") +
+        `</div>` +
+        `<button class="del" style="font-size:16px; padding:0 2px;">×</button>` +
         `</div>`;
 
-      // 経験値表示
       let expHtml;
       if (rowId === "LAP") {
         expHtml = `<div class="exp-cell-lap">LAP MARK</div>`;
@@ -414,40 +453,39 @@
           `</div>`;
       }
 
-      // デスペナチェックボックス
       const deathPenaltyHtml =
         `<label class="desp-label">` +
         `<input type="checkbox" class="desp-tgl" ${hasDeathPenalty ? "checked" : ""}>` +
         `<span class="desp-icon">💀</span></label>`;
 
-      // お供・呼び数セレクト（LAP/転職行は非表示）
       const controlsHtml = (rowId !== "LAP" && rowType !== "job")
-        ? `<div class="row-controls">` +
-          `<select class="rs">` +
+        ? `<div class="row-controls" style="display:flex; gap:4px; align-items:center; flex:1;">` +
+          `<select class="rs" style="flex:1.2;">` +
           `${this.getPartnerOptions(row.dataset.monsterId)}</select>` +
-          `<select class="cs">` +
+          `<div style="display:flex; align-items:center; gap:2px;">` +
+          `<button class="dec-call" style="width:26px;height:26px;border-radius:4px;background:#0066cc;color:#fff;border:none;cursor:pointer;font-weight:bold;font-size:14px;">-</button>` +
+          `<select class="cs" style="width:55px;">` +
           `${this.CALL_LABELS.map((label, i) =>
             i > 0 ? `<option value="${i}" ${i == callCount ? "selected" : ""}>${label}</option>` : ""
           ).join("")}` +
-          `</select></div>`
+          `</select>` +
+          `<button class="inc-call" style="width:26px;height:26px;border-radius:4px;background:#0066cc;color:#fff;border:none;cursor:pointer;font-weight:bold;font-size:14px;">+</button>` +
+          `</div>` +
+          `</div>`
         : `<div class="row-controls-placeholder">----------</div>`;
 
       row.innerHTML =
         rowIdHtml +
-        timeHtml +
+        timeWithDelHtml +
         expHtml +
         deathPenaltyHtml +
-        `<button class="del">×</button>` +
         controlsHtml;
 
-      // 経験値再計算イベント（LAP/転職行は不要）
       if (rowId !== "LAP" && rowType !== "job") {
         const self = this;
 
         const recalcRowExp = () => {
           const snap = JSON.parse(row.dataset.snapshot);
-
-          // スナップショットを直接 calcExp に渡すことで DOM を操作せず再計算
           const newCallCount  = parseInt(row.querySelector(".cs").value);
           const newPartnerKey = row.querySelector(".rs").value;
           row.dataset.count   = newCallCount;
@@ -462,31 +500,193 @@
           self.updateTotal();
         };
 
-        row.querySelector(".cs").onchange = recalcRowExp;
-        row.querySelector(".rs").onchange = recalcRowExp;
+        const csSelect = row.querySelector(".cs");
+        csSelect.onchange = recalcRowExp;
+
+        const rsSelect = row.querySelector(".rs");
+        rsSelect.onchange = recalcRowExp;
+
+        const incBtn = row.querySelector(".inc-call");
+        incBtn.onclick = () => {
+          let newVal = parseInt(csSelect.value) + 1;
+          if (newVal > 12) newVal = 12;
+          csSelect.value = newVal;
+          recalcRowExp();
+        };
+
+        const decBtn = row.querySelector(".dec-call");
+        decBtn.onclick = () => {
+          let newVal = parseInt(csSelect.value) - 1;
+          if (newVal < 1) newVal = 1;
+          csSelect.value = newVal;
+          recalcRowExp();
+        };
 
         const despCheckbox = row.querySelector(".desp-tgl");
         if (despCheckbox) {
           despCheckbox.onchange = () => {
             row.dataset.desp = despCheckbox.checked ? "true" : "false";
-            this.updateTotal();
+            self.updateTotal();
           };
         }
       }
 
-      row.querySelector(".del").onclick = () => {
-        row.remove();
-        this.updateTotal();
-      };
+      const delBtn = row.querySelector(".del");
+      if (delBtn) {
+        delBtn.onclick = () => {
+          const deletedType = row.dataset.type;
+          const deletedBid  = row.dataset.bid;
+
+          if (deletedType !== "angel") {
+            document.querySelectorAll(".exp-row").forEach(r => {
+              if (r !== row && r.dataset.bid === deletedBid && r.dataset.type === "angel") {
+                r.remove();
+              }
+            });
+          }
+          row.remove();
+          this._renumberRows();
+          this._recalcLaps();
+          this.updateTotal();
+        };
+      }
 
       this.$("rowHistory").prepend(row);
       this.updateTotal();
     },
 
-    /**
-     * タイマーの時間表示・LAPタイム表示・オプション持続時間を更新する
-     * @param {number} elapsedSec - 現在の経過秒数
-     */
+    _renumberRows: function () {
+      let num = 1;
+      const rows = Array.from(document.querySelectorAll(".exp-row")).reverse();
+      rows.forEach(r => {
+        const type = r.dataset.type;
+        if (type === "lap_only" || type === "job") return;
+        const bid = r.dataset.bid;
+        if (bid === "LAP") return;
+        if (r.dataset.type === "angel") {
+          const rowIdEl = r.querySelector(".row-id-normal");
+          if (rowIdEl) rowIdEl.textContent = `#${num - 1}`;
+        } else {
+          r.dataset.bid = num;
+          const rowIdEl = r.querySelector(".row-id-normal");
+          if (rowIdEl) rowIdEl.textContent = `#${num}`;
+          num++;
+        }
+      });
+      this.killCount = num - 1;
+    },
+
+    _recalcLaps: function () {
+      const rows = Array.from(document.querySelectorAll(".exp-row")).reverse();
+      let prevSec = 0;
+      rows.forEach(r => {
+        const sec = parseFloat(r.dataset.sec);
+        if (isNaN(sec)) return;
+        const lap = sec - prevSec;
+        r.dataset.lap = lap;
+        const lapEl = r.querySelector(".time-lap");
+        if (lapEl) lapEl.textContent = `L ${this.formatTime(lap)}`;
+        prevSec = sec;
+      });
+      const allRows = document.querySelectorAll(".exp-row");
+      if (allRows.length > 0) {
+        const latestSec = parseFloat(allRows[0].dataset.sec);
+        if (!isNaN(latestSec)) this.lastLapSec = latestSec;
+      } else {
+        this.lastLapSec = 0;
+      }
+    },
+
+    updateTotal: function () {
+      let totalExp    = 0;
+      let passbookExp = 0;
+      let lapTimes    = [];
+      let penaltyMin  = 0;
+      let penaltyMax  = 0;
+
+      document.querySelectorAll(".exp-row").forEach(el => {
+        const expVal = parseInt(el.dataset.val) || 0;
+        if (!isNaN(expVal)) {
+          totalExp += expVal;
+          if (el.dataset.type === "pass") passbookExp += expVal;
+        }
+
+        if (
+          el.dataset.lap &&
+          el.dataset.lap !== "-1" &&
+          el.dataset.type !== "lap_only" &&
+          el.dataset.type !== "job" &&
+          el.dataset.main === "true"
+        ) {
+          lapTimes.push(parseFloat(el.dataset.lap));
+        }
+
+        if (
+          el.dataset.desp === "true" &&
+          el.dataset.lap &&
+          el.dataset.lap !== "-1" &&
+          el.dataset.type !== "lap_only" &&
+          el.dataset.type !== "job"
+        ) {
+          const rawCapped = parseFloat(el.dataset.rawValCapped) || parseInt(el.dataset.val) || 0;
+          const lapSec    = parseFloat(el.dataset.lap);
+          if (lapSec > 6.45) {
+            penaltyMin += rawCapped * (6.45 / lapSec);
+            penaltyMax += rawCapped * (2.58 / lapSec);
+          }
+        }
+      });
+
+      this.$("totalExpDisplay").textContent = Math.ceil(totalExp).toLocaleString();
+
+      const passbookLimit = parseInt(this.$("pb").value) || 0;
+      if (passbookLimit > 0) {
+        const remaining = Math.max(0, passbookExp - this.passbookOffset);
+        this.$("passbookExpDisplay").textContent = Math.ceil(remaining).toLocaleString();
+      }
+
+      const hasPenalty = document.querySelectorAll('.exp-row[data-desp="true"]').length > 0;
+      const penaltyRef = this.$("penaltyRef");
+      if (hasPenalty && penaltyMin > 0) {
+        penaltyRef.style.display = "block";
+        penaltyRef.innerHTML =
+          `デスペナ想定:<br>${Math.ceil(penaltyMax).toLocaleString()}～${Math.ceil(penaltyMin).toLocaleString()}`;
+      } else {
+        penaltyRef.style.display = "none";
+      }
+
+      if (lapTimes.length > 0) {
+        const avgSec = lapTimes.reduce((a, b) => a + b, 0) / lapTimes.length;
+        this.$("avgTimeDisplay").textContent = this.formatTime(avgSec);
+        if (avgSec > 0.01) {
+          const battles30min = Math.floor(1800 / avgSec);
+          const expPerBattle = totalExp / (lapTimes.length || 1);
+          this.$("estimatedGoldDisplay").textContent =
+            `${Math.round(expPerBattle * battles30min / 1e4)}万～` +
+            `${Math.round(expPerBattle * (battles30min + 1) / 1e4)}万`;
+        } else {
+          this.$("estimatedGoldDisplay").textContent = "--";
+        }
+      } else {
+        this.$("avgTimeDisplay").textContent = "--:--.--";
+        this.$("estimatedGoldDisplay").textContent = "--";
+      }
+    },
+
+    getPartnerOptions: function (monsterId) {
+      const baseOptions =
+        `<option value="none">お供無</option>` +
+        `<option value="hm1">はぐメタ1</option>` +
+        `<option value="hm2">はぐメタ2</option>` +
+        `<option value="hm3">はぐメタ3</option>` +
+        `<option value="mk">メタキン</option>` +
+        `<option value="gn">ゲノミー</option>` +
+        `<option value="sn">仙人</option>`;
+      return monsterId === "dearthlicant"
+        ? baseOptions + `<option value="zucchini">ズッキ祖</option>`
+        : baseOptions;
+    },
+
     updateTimerDisplay: function (elapsedSec) {
       this.$("timerDisplay").textContent    = this.formatTime(elapsedSec);
       this.$("lapTimeDisplay").textContent  = this.formatTime(elapsedSec - this.lastLapSec);
@@ -496,14 +696,15 @@
         : "&nbsp;";
     },
 
-    /**
-     * 指定コンテナにHTMLを注入してイベントリスナーを設定する
-     * @param {string} containerSelector - マウント先のCSSセレクタ
-     */
     render: function (containerSelector) {
       const container = document.querySelector(containerSelector);
       if (!container) return;
       const self = this;
+
+      const savedNotify = localStorage.getItem('dqx_lap_notify');
+      if (savedNotify !== null) {
+        this.lapNotifyEnabled = savedNotify === 'true';
+      }
 
       container.innerHTML = `
 <style>
@@ -519,8 +720,7 @@
   .btn-teal{background:#00bcd4;color:#fff;border:none;border-radius:4px;font-weight:bold;cursor:pointer}
   .panel-bg{background:#f9f9f9;border:1px solid #eee;border-radius:6px}
   .rs,.cs{font-size:12px;padding:2px 4px;min-width:52px}
-  .rs{flex:1.45}
-  .cs{flex:0.9}
+  .rs{flex:1.2}
   .mono-digit{font-family:'Verdana',system-ui,sans-serif;font-variant-numeric:tabular-nums}
   #timerDisplay,#lapTimeDisplay,#avgTimeDisplay,#passbookExpDisplay,#passbookLimitText{font-family:'Verdana',system-ui,sans-serif;font-variant-numeric:tabular-nums}
   #passbookExpDisplay,#passbookLimitText{font-size:15px;font-weight:bold}
@@ -544,43 +744,44 @@
   #btnTimerStop{background:#008888;color:#fff;border:1px solid #00aaaa;border-radius:4px;cursor:pointer;font-weight:bold;padding:2px}
   .btn-copy{background:#008888;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:bold;display:flex;align-items:center;justify-content:center;padding:4px 8px;font-size:12px}
   .btn-oc{background:#fff1f0;border:1px solid #ffa39e;color:#cf1322;border-radius:4px;padding:6px 12px;font-size:12px;cursor:pointer;margin-right:8px}
+  .btn-rita-kuma{transition:background 0.15s,color 0.15s,border-color 0.15s}
+  .btn-rita-kuma.active-rita-kuma{background:#e8f0ff!important;color:#06c!important;border-color:#7ab8ff!important}
+  .btn-rita-kuma:not(.active-rita-kuma){background:#f5f5f5!important;color:#888!important;border-color:#bbb!important}
   
-  /* 背景クラス */
   .exp-card{background:#f0f7ff;border:1px solid #7ab8ff;border-radius:6px}
   .opt-button{background:#f0f7ff;border:1px solid #7ab8ff;border-radius:6px}
   .monster-select{background:#f0f7ff}
   .reward-card{background:#f0f7ff}
   
-  /* 行内クラス */
   .row-id-lap{color:#2cc9ff;font-weight:bold;width:26px;font-size:10px}
   .row-id-normal{color:#999;width:26px;font-size:10px}
   .time-cell{font-family:'Verdana',system-ui,sans-serif;font-variant-numeric:tabular-nums;width:65px}
   .time-main{font-size:11px;font-weight:bold}
   .time-lap{color:#2cc9ff;font-size:10px}
-  .exp-cell{width:95px}
-  .exp-cell-lap{width:95px;color:#aaa;font-size:10px}
-  .exp-value{font-size:13px;min-width:62px;text-align:right;font-family:'Verdana',system-ui,sans-serif;font-variant-numeric:tabular-nums}
+  .exp-cell{width:85px}
+  .exp-cell-lap{width:85px;color:#aaa;font-size:10px}
+  .exp-value{font-size:13px;min-width:58px;text-align:right;font-family:'Verdana',system-ui,sans-serif;font-variant-numeric:tabular-nums}
   .exp-label{font-size:10px}
   .desp-label{margin:0 2px;display:inline-flex;align-items:center}
   .desp-icon{font-size:9px}
-  .del{border:none;background:none;color:#aaa;cursor:pointer;font-size:19px;padding:0 4px}
-  .row-controls{display:flex;gap:3px;flex:1}
+  .del{border:none;background:none;color:#aaa;cursor:pointer;font-size:16px;padding:0 2px}
+  .row-controls{display:flex;gap:4px;flex:1;align-items:center}
   .row-controls-placeholder{flex:1;color:#aaa;text-align:center;font-size:10px}
+  .notify-toggle { display: flex; align-items: center; gap: 4px; background: #f0f7ff; padding: 2px 8px; border-radius: 20px; font-size: 11px; border: 1px solid #7ab8ff; }
+  .notify-toggle input { width: 16px; height: 16px; margin: 0; cursor: pointer; }
+  .notify-toggle label { cursor: pointer; font-size: 11px; margin: 0; }
   
-  /* ===== ダークモード ===== */
   body.dark-mode{background:#0a0a0f}
   body.dark-mode .c{background:#1a1a2a;color:#e8e8f0}
   body.dark-mode select,body.dark-mode input,body.dark-mode button{background:#2a2a3a;color:#e8e8f0}
   body.dark-mode .h{border-bottom-color:#2a2a3a}
   body.dark-mode .panel-bg{background:#0f0f17;border-color:#2a2a3a}
-  /* 背景上書き（インラインスタイルを打ち消すため !important） */
   body.dark-mode .exp-card{background:#2a2f45 !important}
   body.dark-mode .opt-button{background:#2a2f45 !important}
   body.dark-mode .monster-select{background:#2a2f45 !important}
   body.dark-mode .reward-card{background:#2a2f45 !important}
-  /* インラインスタイルの色を上書きするものだけ !important */
   body.dark-mode #currentExpDisplay{color:#5a9eff !important}
-  body.dark-mode #ms,body.dark-mode #pob div{color:#5a9eff !important}
+  body.dark-mode #ms{color:#5a9eff !important}
   body.dark-mode .text-orange{color:#ffaa66}
   body.dark-mode .text-green{color:#66ffaa}
   body.dark-mode .text-red{color:#ff8888}
@@ -597,6 +798,9 @@
   body.dark-mode #btnTimerStop{background:#006666;border:1px solid #008888}
   body.dark-mode .btn-copy{background:#006666}
   body.dark-mode .btn-oc{background:#2a1515;border:1px solid #883333;color:#cc7777}
+  body.dark-mode .btn-rita-kuma.active-rita-kuma{background:#2a2f45!important;color:#5a9eff!important;border-color:#7ab8ff!important}
+  body.dark-mode .btn-rita-kuma:not(.active-rita-kuma){background:#1a1a2a!important;color:#666!important;border-color:#333!important}
+  body.dark-mode #btnOptMonster{background:#1a6eaa;border:1px solid #3399cc}
   body.dark-mode #ms,body.dark-mode #pb,body.dark-mode #cn,body.dark-mode .rs,body.dark-mode .cs{border-color:#7ab8ff}
   body.dark-mode #ms{background-color:#2a2f45}
   body.dark-mode #overflowDisplay{color:#888}
@@ -610,12 +814,16 @@
   body.dark-mode .time-lap{color:#2cc9ff}
   body.dark-mode .row-controls-placeholder{color:#aaa}
   body.dark-mode .del{color:#aaa}
+  body.dark-mode .notify-toggle{background:#2a2f45;border-color:#5a9eff}
 </style>
 
 <div class="c">
 
-  <!-- モンスター選択・通帳選択 -->
-  <div style="display:flex;gap:6px;margin-bottom:8px">
+  <div style="display:flex;gap:6px;margin-bottom:6px;align-items:center">
+    <div class="notify-toggle">
+      <input type="checkbox" id="lapNotifyToggle" ${this.lapNotifyEnabled ? 'checked' : ''}>
+      <label for="lapNotifyToggle">🔊 LAP通知</label>
+    </div>
     <select id="ms" class="monster-select" style="flex:2;padding:6px;font-size:15px;border:1px solid #7ab8ff;border-radius:4px;font-weight:bold">
       <option value="returner"      data-base="13118" data-bonus="0">リターナーモア</option>
       <option value="durahan"       data-base="22802" data-bonus="4561" selected>デュラハーン</option>
@@ -631,16 +839,16 @@
     </select>
   </div>
 
-  <!-- 経験値表示・最適ボタン・討伐数選択 -->
-  <div style="display:flex;gap:4px;margin-bottom:8px">
-    <div class="exp-card" style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:4px">
+  <div style="display:flex;gap:4px;margin-bottom:8px;align-items:stretch">
+    <div class="exp-card" style="flex:2;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:4px">
       <span id="currentExpDisplay" style="font-size:22px;font-weight:bold;color:#06c">0</span>
       <span id="overflowDisplay" style="font-size:9px;color:#999;margin-top:2px;visibility:hidden">溢れ:0</span>
     </div>
-    <div id="pob" class="opt-button" style="width:46px;cursor:pointer;text-align:center;display:flex;flex-direction:column;align-items:center;justify-content:center">
-      <div style="font-size:8px;color:#06c">最適</div>
-      <div style="font-size:13px;font-weight:bold;color:#06c">+1</div>
+    <div style="display:flex;flex-direction:column;gap:3px">
+      <button id="btnRita" class="btn-rita-kuma active-rita-kuma" style="flex:1;font-size:11px;padding:3px 7px;border-radius:4px;border:1px solid #7ab8ff;cursor:pointer;font-weight:bold">◯リタ</button>
+      <button id="btnKuma" class="btn-rita-kuma" style="flex:1;font-size:11px;padding:3px 7px;border-radius:4px;border:1px solid #bbb;cursor:pointer;font-weight:bold">◯クマ</button>
     </div>
+    <button id="btnOptMonster" style="background:#06c;color:#fff;border:none;border-radius:6px;font-size:11px;font-weight:bold;cursor:pointer;padding:4px 6px;line-height:1.3;white-space:nowrap">最適<br>ﾓﾝｽﾀｰ</button>
     <div style="width:60px">
       <div style="font-size:7px;color:#666;text-align:center">討伐数</div>
       <select id="cn" style="width:100%;padding:2px;font-size:18px;font-weight:bold;border:1px solid #7ab8ff;border-radius:4px;text-align:center">
@@ -652,16 +860,13 @@
     </div>
   </div>
 
-  <!-- バフ設定・タイマー開始ボタン -->
   <div id="timer-row" class="timer-row" style="padding:6px 8px;margin-bottom:8px;display:flex;gap:6px">
     <div style="flex:1;font-size:12px;display:flex;flex-direction:column;align-items:flex-end;padding-right:50px;justify-content:center">
-      <!-- エリクサー選択 -->
       <div style="margin-bottom:3px;display:flex;gap:8px">
         <label><input name="e_exp" type="radio" value="none" />無</label>
         <label><input name="e_exp" type="radio" value="genki" checked />元気</label>
         <label><input name="e_exp" type="radio" value="bakushin" />爆伸</label>
       </div>
-      <!-- バフチェックボックス・OCリセット -->
       <div style="border-top:1px solid #ddd;padding-top:3px;width:100%;display:flex;justify-content:flex-end;gap:14px;font-size:11px;align-items:center">
         <button id="btnBuffReset" class="btn-oc">OC</button>
         <div style="display:flex;flex-direction:column;gap:2px">
@@ -677,7 +882,6 @@
     <button id="btnTimerStop" style="width:72px;font-size:12px;border-radius:4px;cursor:pointer;font-weight:bold;padding:2px">タイマー<br />開始</button>
   </div>
 
-  <!-- 総獲得・加算ボタン -->
   <div style="display:flex;gap:6px;margin-bottom:8px">
     <div class="panel-bg" style="flex:6;padding:6px 8px;border-radius:6px;text-align:center">
       <div>
@@ -692,7 +896,6 @@
     <button id="btnCalc" class="btn-primary" style="flex:4;font-size:21px;border-radius:6px">加算</button>
   </div>
 
-  <!-- タイマー表示エリア -->
   <div class="panel-bg" style="padding:6px;border-radius:6px;margin-bottom:8px">
     <div style="display:flex;gap:6px;margin-bottom:4px;align-items:flex-start;justify-content:space-between">
       <div id="timerDisplay" class="mono-digit" style="font-size:28px;font-weight:bold">00:00.00</div>
@@ -701,7 +904,6 @@
         <div><span style="font-size:10px">LAP:</span><span id="lapTimeDisplay" class="lap-display mono-digit">00:00.00</span></div>
       </div>
     </div>
-    <!-- タイマー操作ボタン -->
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:3px;margin-top:4px">
       <button id="btnAllClear"     class="btn-warning" style="padding:7px;font-size:11px">AC</button>
       <button id="btnTimerPause"   class="btn-danger"  style="padding:7px;font-size:11px">停止</button>
@@ -710,7 +912,6 @@
     </div>
   </div>
 
-  <!-- 履歴コピー・想定玉給 -->
   <div style="display:flex;gap:6px;margin-bottom:6px;align-items:center">
     <button id="btnCopyHistory" class="btn-copy" style="flex:3;white-space:nowrap">履歴コピー</button>
     <div id="estimatedReward" class="reward-card" style="flex:7;border-radius:6px;padding:3px 6px;text-align:center;font-size:12px;display:flex;align-items:center;justify-content:center">
@@ -718,7 +919,6 @@
     </div>
   </div>
 
-  <!-- 通帳エリア -->
   <div id="passbookArea" class="passbook-area hidden" style="margin-bottom:6px">
     <div class="passbook-info" style="font-size:11px">
       通帳:<strong id="passbookExpDisplay" class="text-red mono-digit" style="font-size:13px">0</strong>/<span id="passbookLimitText" class="mono-digit" style="font-size:13px">0</span>
@@ -729,57 +929,73 @@
     </div>
   </div>
 
-  <!-- 履歴リスト -->
   <div id="rowHistory" style="margin-top:4px;max-height:250px;overflow-y:auto;border-top:1px solid #eee"></div>
 </div>
 `;
 
-      // ----- イベントリスナー設定（元のコードを完全維持）-----
-      
-      // 加算ボタン
-      self.$("btnCalc").onclick = () => {
-        if (Date.now() < self.calcLockedUntil) return;
-        self.killCount++;
-        const elapsedSec = self.timer
-          ? (Date.now() - self.startTime) / 1000
-          : self.pauseSec;
-        const lapSec     = self.timer ? (elapsedSec - self.lastLapSec) : null;
-        const callCount  = parseInt(self.$("cn").value);
-        const expResult  = self.calcExp(callCount);
-        const passbookLimit = parseInt(self.$("pb").value) || 0;
+      const notifyToggle = this.$('lapNotifyToggle');
+      if (notifyToggle) {
+        notifyToggle.checked = this.lapNotifyEnabled;
+        notifyToggle.onchange = (e) => {
+          this.lapNotifyEnabled = e.target.checked;
+          localStorage.setItem('dqx_lap_notify', this.lapNotifyEnabled);
+        };
+      }
+
+      // LAPボタン
+      this.$("btnLap").onclick = () => {
+        const elapsedSec = this.timer
+          ? (Date.now() - this.startTime) / 1000
+          : this.pauseSec;
+        const lapSec = this.timer ? (elapsedSec - this.lastLapSec) : null;
+        this.addRow("LAP", 0, 0, "lap_only", elapsedSec, lapSec);
+        this.lastLapSec = elapsedSec;
+        this.lapNotifyFired = false;
+        this.updateTimerDisplay(elapsedSec);
+      };
+
+      // 既存のイベントリスナー（変更なし）
+      this.$("btnCalc").onclick = () => {
+        if (Date.now() < this.calcLockedUntil) return;
+        this.lapNotifyFired = false;
+        this.killCount++;
+        const elapsedSec = this.timer
+          ? (Date.now() - this.startTime) / 1000
+          : this.pauseSec;
+        const lapSec     = this.timer ? (elapsedSec - this.lastLapSec) : null;
+        const callCount  = parseInt(this.$("cn").value);
+        const expResult  = this.calcExp(callCount);
+        const passbookLimit = parseInt(this.$("pb").value) || 0;
 
         if (passbookLimit > 0) {
-          // エンゼル経験値行
           if (expResult.angel > 0) {
-            self.addRow(self.killCount, callCount, expResult.angel, "angel", elapsedSec, lapSec, false, expResult.angel, null, false);
+            this.addRow(this.killCount, callCount, expResult.angel, "angel", elapsedSec, lapSec, false, expResult.angel, null, false);
           }
-          // 通帳残量を確認して通常/溢れを振り分け
           let accumulatedRaw = 0;
           document.querySelectorAll('.exp-row[data-type="pass"]').forEach(el => {
             const raw = parseFloat(el.dataset.rawValCapped);
             if (!isNaN(raw)) accumulatedRaw += raw;
           });
-          const remainingRaw = Math.max(0, passbookLimit - (accumulatedRaw - self.passbookOffset));
+          const remainingRaw = Math.max(0, passbookLimit - (accumulatedRaw - this.passbookOffset));
           const remaining    = Math.ceil(remainingRaw);
 
           if (remaining >= expResult.common) {
-            self.addRow(self.killCount, callCount, expResult.common, "pass", elapsedSec, lapSec, true, expResult.common, null, false);
+            this.addRow(this.killCount, callCount, expResult.common, "pass", elapsedSec, lapSec, true, expResult.common, null, false);
           } else if (remaining > 0) {
-            self.addRow(self.killCount, callCount, expResult.common - remaining, "overflow", elapsedSec, lapSec, false, expResult.common - remaining, null, false);
-            self.addRow(self.killCount, callCount, remaining, "pass", elapsedSec, lapSec, true, remaining, null, false);
+            this.addRow(this.killCount, callCount, expResult.common - remaining, "overflow", elapsedSec, lapSec, false, expResult.common - remaining, null, false);
+            this.addRow(this.killCount, callCount, remaining, "pass", elapsedSec, lapSec, true, remaining, null, false);
           } else {
-            self.addRow(self.killCount, callCount, expResult.common, "overflow", elapsedSec, lapSec, true, expResult.common, null, false);
+            this.addRow(this.killCount, callCount, expResult.common, "overflow", elapsedSec, lapSec, true, expResult.common, null, false);
           }
         } else {
-          self.addRow(self.killCount, callCount, expResult.total, "normal", elapsedSec, lapSec, true, expResult.total, null, false);
+          this.addRow(this.killCount, callCount, expResult.total, "normal", elapsedSec, lapSec, true, expResult.total, null, false);
         }
 
-        self.lastLapSec = elapsedSec;
-        self.updateTimerDisplay(elapsedSec);
+        this.lastLapSec = elapsedSec;
+        this.updateTimerDisplay(elapsedSec);
 
-        // 加算後3秒間はボタンをロック
-        self.calcLockedUntil = Date.now() + 3000;
-        const calcBtn = self.$("btnCalc");
+        this.calcLockedUntil = Date.now() + 3000;
+        const calcBtn = this.$("btnCalc");
         calcBtn.disabled = true;
         calcBtn.style.opacity = "0.5";
         let countdown = 3;
@@ -792,123 +1008,136 @@
             calcBtn.disabled = false;
             calcBtn.style.opacity = "1";
             calcBtn.textContent = "加算";
-            self.updateUI();
+            this.updateUI();
           }
         }, 1000);
       };
 
-      // ACボタン（全リセット）
-      self.$("btnAllClear").onclick = () => {
-        if (self.timer) { clearInterval(self.timer); self.timer = null; }
-        self.pauseSec       = 0;
-        self.startTime      = 0;
-        self.lastLapSec     = 0;
-        self.killCount      = 0;
-        self.jobOffsetSec   = 0;
-        self.passbookOffset = 0;
-        self.$("rowHistory").innerHTML = "";
-        self.updateTimerDisplay(0);
-        self.updateTotal();
-        self.updateUI();
+      this.$("btnAllClear").onclick = () => {
+        if (this.timer) { clearInterval(this.timer); this.timer = null; }
+        this.pauseSec       = 0;
+        this.startTime      = 0;
+        this.lastLapSec     = 0;
+        this.killCount      = 0;
+        this.jobOffsetSec   = 0;
+        this.passbookOffset = 0;
+        this.$("rowHistory").innerHTML = "";
+        this.updateTimerDisplay(0);
+        this.updateTotal();
+        this.updateUI();
       };
 
-      // 通帳1Lv引き出しボタン
-      self.$("btnPassbookWithdraw").onclick = () => {
+      this.$("btnPassbookWithdraw").onclick = () => {
         let accumulatedRaw = 0;
         document.querySelectorAll('.exp-row[data-type="pass"]').forEach(el => {
           const raw = parseFloat(el.dataset.rawValCapped);
           if (!isNaN(raw)) accumulatedRaw += raw;
         });
-        const balance = accumulatedRaw - self.passbookOffset;
+        const balance = accumulatedRaw - this.passbookOffset;
         if (balance <= 0) return;
-        const withdrawn = Math.min(self.EXP_PER_LV, balance);
-        self.passbookOffset += withdrawn;
-        self.updateTotal();
+        const withdrawn = Math.min(this.EXP_PER_LV, balance);
+        this.passbookOffset += withdrawn;
+        this.updateTotal();
       };
 
-      // LAPボタン
-      self.$("btnLap").onclick = () => {
-        const elapsedSec = self.timer
-          ? (Date.now() - self.startTime) / 1000
-          : self.pauseSec;
-        self.addRow("LAP", 0, 0, "lap_only", elapsedSec, elapsedSec - self.lastLapSec);
-        self.lastLapSec = elapsedSec;
-        self.updateTimerDisplay(elapsedSec);
-      };
-
-      // 転職ボタン
-      self.$("btnJob").onclick = () => {
-        if (!self.timer && self.pauseSec === 0) return;
-        const elapsedSec = self.timer
-          ? (Date.now() - self.startTime) / 1000
-          : self.pauseSec;
-        self.jobOffsetSec += 20;
-        if (self.jobOffsetSec > elapsedSec) self.jobOffsetSec = elapsedSec;
-        self.updateTimerDisplay(elapsedSec);
-        if (self.timer) {
-          self.addRow("JOB", 0, 0, "job", elapsedSec, elapsedSec - self.lastLapSec);
-          self.lastLapSec = elapsedSec;
+      this.$("btnJob").onclick = () => {
+        if (!this.timer && this.pauseSec === 0) return;
+        const elapsedSec = this.timer
+          ? (Date.now() - this.startTime) / 1000
+          : this.pauseSec;
+        this.jobOffsetSec += 20;
+        if (this.jobOffsetSec > elapsedSec) this.jobOffsetSec = elapsedSec;
+        this.updateTimerDisplay(elapsedSec);
+        if (this.timer) {
+          this.addRow("JOB", 0, 0, "job", elapsedSec, elapsedSec - this.lastLapSec);
+          this.lastLapSec = elapsedSec;
         }
       };
 
-      // 最適+1ボタン
-      self.$("pob").onclick = () => {
-        self.$("cn").value = Math.min(12, self.optCallCount + 1);
-        self.updateUI(false);
+      this.$("btnRita").onclick = () => {
+        this.ritaOrKuma = "returner";
+        this.$("btnRita").classList.add("active-rita-kuma");
+        this.$("btnKuma").classList.remove("active-rita-kuma");
+        this.updateUI(false);
+      };
+      this.$("btnKuma").onclick = () => {
+        this.ritaOrKuma = "scare";
+        this.$("btnKuma").classList.add("active-rita-kuma");
+        this.$("btnRita").classList.remove("active-rita-kuma");
+        this.updateUI(false);
       };
 
-      // タイマー開始ボタン
-      self.$("btnTimerStop").onclick = () => {
-        if (!self.timer) {
-          self.startTime = Date.now() - self.pauseSec * 1000;
-          self.timer = setInterval(() => {
-            const elapsedSec = (Date.now() - self.startTime) / 1000;
-            self.updateTimerDisplay(elapsedSec);
+      this.$("btnOptMonster").onclick = () => {
+        const monsterId = this.lookupOptimalMonster();
+        this.$("ms").value = monsterId;
+        this.updateUI(true);
+      };
+
+      this.$("btnTimerStop").onclick = () => {
+        if (!this.timer) {
+          // AudioContextをユーザー操作中に事前初期化（Autoplay制限回避＋初回遅延防止）
+          if (!this.audioCtx) {
+            try { this.audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e) {}
+          }
+          this.startTime = Date.now() - this.pauseSec * 1000;
+          this.timer = setInterval(() => {
+            const elapsedSec = (Date.now() - this.startTime) / 1000;
+            this.updateTimerDisplay(elapsedSec);
+
+            // 平均LAP超過チェック
+            if (this.lapNotifyEnabled) {
+              const avgSec = this.getAverageLapSec();
+              const currentLapSec = elapsedSec - this.lastLapSec;
+              if (avgSec !== null && currentLapSec > avgSec) {
+                if (!this.lapNotifyFired) {
+                  this.lapNotifyFired = true;
+                  this.playLapWarning();
+                }
+              } else {
+                this.lapNotifyFired = false;
+              }
+            }
           }, 30);
-          // 開始直後のロック解除
-          self.calcLockedUntil = Math.max(self.calcLockedUntil, Date.now()) + 100;
-          self.$("btnCalc").disabled = true;
-          self.$("btnCalc").style.opacity = "0.5";
+          this.calcLockedUntil = Math.max(this.calcLockedUntil, Date.now()) + 100;
+          this.$("btnCalc").disabled = true;
+          this.$("btnCalc").style.opacity = "0.5";
           setTimeout(() => {
-            if (Date.now() >= self.calcLockedUntil) {
-              self.$("btnCalc").disabled = false;
-              self.$("btnCalc").style.opacity = "1";
+            if (Date.now() >= this.calcLockedUntil) {
+              this.$("btnCalc").disabled = false;
+              this.$("btnCalc").style.opacity = "1";
             }
           }, 100);
         }
       };
 
-      // タイマー停止ボタン
-      self.$("btnTimerPause").onclick = () => {
-        if (self.timer) {
-          clearInterval(self.timer);
-          self.timer = null;
-          self.pauseSec = (Date.now() - self.startTime) / 1000;
-          self.updateTimerDisplay(self.pauseSec);
+      this.$("btnTimerPause").onclick = () => {
+        if (this.timer) {
+          clearInterval(this.timer);
+          this.timer = null;
+          this.pauseSec = (Date.now() - this.startTime) / 1000;
+          this.updateTimerDisplay(this.pauseSec);
         }
       };
 
-      // 通帳リセットボタン
-      self.$("btnPassbookReset").onclick = () => {
+      this.$("btnPassbookReset").onclick = () => {
         let accumulatedRaw = 0;
         document.querySelectorAll('.exp-row[data-type="pass"]').forEach(el => {
           const raw = parseFloat(el.dataset.rawValCapped);
           if (!isNaN(raw)) accumulatedRaw += raw;
         });
-        self.passbookOffset = Math.ceil(accumulatedRaw);
-        self.updateTotal();
+        this.passbookOffset = Math.ceil(accumulatedRaw);
+        this.updateTotal();
       };
 
-      // 履歴コピーボタン
-      self.$("btnCopyHistory").onclick = () => {
+      this.$("btnCopyHistory").onclick = () => {
         try {
           const lines = [];
-          lines.push(`モンスター/${self.$("ms").options[self.$("ms").selectedIndex].text}`);
+          lines.push(`モンスター/${this.$("ms").options[this.$("ms").selectedIndex].text}`);
           lines.push(`総獲得/平均タイム/想定玉給`);
           lines.push(
-            `${self.$("totalExpDisplay").textContent.replace(/,/g, "")}` +
-            `/${self.$("avgTimeDisplay").textContent}` +
-            `/${self.$("estimatedGoldDisplay").textContent}`
+            `${this.$("totalExpDisplay").textContent.replace(/,/g, "")}` +
+            `/${this.$("avgTimeDisplay").textContent}` +
+            `/${this.$("estimatedGoldDisplay").textContent}`
           );
           lines.push(``);
           lines.push(`#/戦闘時間/獲得exp/呼び数/お供/種類`);
@@ -922,15 +1151,15 @@
               return;
             }
             if (rowType === "job") {
-              const timeStr = self.formatTime(parseFloat(el.dataset.sec) || 0);
+              const timeStr = this.formatTime(parseFloat(el.dataset.sec) || 0);
               lines.push(`${rowId}/${timeStr}////転職`);
               return;
             }
 
-            const timeStr   = self.formatTime(parseFloat(el.dataset.sec) || 0);
+            const timeStr   = this.formatTime(parseFloat(el.dataset.sec) || 0);
             const expVal    = (parseInt(el.dataset.val) || 0).toString();
             const callIdx   = parseInt(el.dataset.count);
-            const callLabel = !isNaN(callIdx) ? (self.CALL_LABELS[callIdx] || "--") : "--";
+            const callLabel = !isNaN(callIdx) ? (this.CALL_LABELS[callIdx] || "--") : "--";
             const partnerSelect = el.querySelector(".rs");
             const partnerLabel  = partnerSelect
               ? (partnerSelect.options[partnerSelect.selectedIndex]?.text || "お供無")
@@ -949,32 +1178,27 @@
         }
       };
 
-      // OCリセットボタン（バフを初期状態に戻す）
-      self.$("btnBuffReset").onclick = () => {
-        self.$("fd").checked = true;
-        self.$("tr").checked = false;
-        self.$("ag").checked = false;
-        self.$("em").checked = false;
+      this.$("btnBuffReset").onclick = () => {
+        this.$("fd").checked = true;
+        this.$("tr").checked = false;
+        this.$("ag").checked = false;
+        this.$("em").checked = false;
         const genkiradio = document.querySelector('input[name="e_exp"][value="genki"]');
         if (genkiradio) genkiradio.checked = true;
-        self.$("pb").value = "0";
-        self.updateUI(true);
+        this.$("pb").value = "0";
+        this.updateUI(true);
       };
 
-      // バフ変更時のUI更新（討伐数は自動調整）
       document.querySelectorAll('input[name="e_exp"], #fd, #tr, #ag, #em, #ms, #pb').forEach(el => {
-        el.onchange = () => self.updateUI(true);
+        el.onchange = () => this.updateUI(true);
       });
 
-      // 討伐数変更時のUI更新（討伐数は変えない）
-      self.$("cn").onchange = () => self.updateUI(false);
+      this.$("cn").onchange = () => this.updateUI(false);
 
-      // 初期表示
-      self.updateUI(true);
+      this.updateUI(true);
     },
   };
 
-  // 外部公開 API
   global.Expmercenary = {
     render: ExpCalc.render.bind(ExpCalc),
     destroy: function () {
