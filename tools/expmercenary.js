@@ -917,6 +917,7 @@
         const lapSec = this.timer ? (elapsedSec - this.lastLapSec) : null;
         this.addRow("LAP", 0, 0, "lap_only", elapsedSec, lapSec);
         this.lastLapSec = elapsedSec;
+        this.lapNotifyFired = false;
         this.updateTimerDisplay(elapsedSec);
       };
 
