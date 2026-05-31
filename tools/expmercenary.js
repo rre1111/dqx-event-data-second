@@ -1,13 +1,13 @@
-// ========== 傭兵用多機能ツール ver1.6.1 ==========
+// ========== 傭兵用多機能ツール ver1.6.2 ==========
 // 変更履歴:
 // - 履歴レイアウト改修: 削除ボタンを時間の隣に移動
-// - LAP超過音声通知機能追加（デフォルトOFF、localStorage保存、ビープ音1800Hz→1600Hz）
+// - LAP超過音声通知機能追加（デフォルトOFF、ビープ音1800Hz→1600Hz）
 // - スマホ表示対応のため+/-ボタン削除（プルダウンのみ）
+// - クマ選択時の最適モンスターを「ダースリカント」に修正
 
 (function (global) {
 
   const ExpCalc = {
-    // ----- タイマー状態 -----
     timer: null,
     startTime: 0,
     pauseSec: 0,
@@ -17,24 +17,16 @@
     killCount: 0,
     optCallCount: 1,
     calcLockedUntil: 0,
-    ritaOrKuma: "returner",
+    ritaOrKuma: "returner",  // "returner" または "dearthlicant"
     lapNotifyEnabled: false,
     lapNotifyFired: false,
     audioCtx: null,
 
-    // ----- 定数 -----
     CALL_LABELS: ["", "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L"],
 
     PARTNER_EXP: {
-      none:     0,
-      mk:       48240,
-      hm1:      12060,
-      hm2:      24120,
-      hm3:      36180,
-      tappitsu: 4800,
-      gn:       2240,
-      sn:       1120,
-      zucchini: 9010,
+      none: 0, mk: 48240, hm1: 12060, hm2: 24120, hm3: 36180,
+      tappitsu: 4800, gn: 2240, sn: 1120, zucchini: 9010,
     },
 
     EXP_PER_LV: 1589326,
@@ -42,136 +34,134 @@
     CSV2_TABLE: (function () {
       const rows = [
         ["genki","×","×","×","通帳なし","durahan"],
-        ["genki","×","×","×","通帳1",  "durahan"],
-        ["genki","×","×","×","通帳2",  "durahan"],
+        ["genki","×","×","×","通帳1","durahan"],
+        ["genki","×","×","×","通帳2","durahan"],
         ["genki","×","×","○","通帳なし","rita_or_kuma"],
-        ["genki","×","×","○","通帳1",  "rita_or_kuma"],
-        ["genki","×","×","○","通帳2",  "rita_or_kuma"],
+        ["genki","×","×","○","通帳1","rita_or_kuma"],
+        ["genki","×","×","○","通帳2","rita_or_kuma"],
         ["genki","×","○","×","通帳なし","rita_or_kuma"],
-        ["genki","×","○","×","通帳1",  "durahan"],
-        ["genki","×","○","×","通帳2",  "durahan"],
+        ["genki","×","○","×","通帳1","durahan"],
+        ["genki","×","○","×","通帳2","durahan"],
         ["genki","×","○","○","通帳なし","rita_or_kuma"],
-        ["genki","×","○","○","通帳1",  "rita_or_kuma"],
-        ["genki","×","○","○","通帳2",  "rita_or_kuma"],
+        ["genki","×","○","○","通帳1","rita_or_kuma"],
+        ["genki","×","○","○","通帳2","rita_or_kuma"],
         ["genki","○","×","×","通帳なし","durahan"],
-        ["genki","○","×","×","通帳1",  "durahan"],
-        ["genki","○","×","×","通帳2",  "durahan"],
+        ["genki","○","×","×","通帳1","durahan"],
+        ["genki","○","×","×","通帳2","durahan"],
         ["genki","○","×","○","通帳なし","durahan"],
-        ["genki","○","×","○","通帳1",  "durahan"],
-        ["genki","○","×","○","通帳2",  "durahan"],
+        ["genki","○","×","○","通帳1","durahan"],
+        ["genki","○","×","○","通帳2","durahan"],
         ["genki","○","○","×","通帳なし","durahan"],
-        ["genki","○","○","×","通帳1",  "durahan"],
-        ["genki","○","○","×","通帳2",  "durahan"],
+        ["genki","○","○","×","通帳1","durahan"],
+        ["genki","○","○","×","通帳2","durahan"],
         ["genki","○","○","○","通帳なし","durahan"],
-        ["genki","○","○","○","通帳1",  "durahan"],
-        ["genki","○","○","○","通帳2",  "durahan"],
+        ["genki","○","○","○","通帳1","durahan"],
+        ["genki","○","○","○","通帳2","durahan"],
         ["bakushin","×","×","×","通帳なし","durahan"],
-        ["bakushin","×","×","×","通帳1",  "durahan"],
-        ["bakushin","×","×","×","通帳2",  "durahan"],
+        ["bakushin","×","×","×","通帳1","durahan"],
+        ["bakushin","×","×","×","通帳2","durahan"],
         ["bakushin","×","×","○","通帳なし","durahan"],
-        ["bakushin","×","×","○","通帳1",  "durahan"],
-        ["bakushin","×","×","○","通帳2",  "durahan"],
+        ["bakushin","×","×","○","通帳1","durahan"],
+        ["bakushin","×","×","○","通帳2","durahan"],
         ["bakushin","×","○","×","通帳なし","durahan"],
-        ["bakushin","×","○","×","通帳1",  "durahan"],
-        ["bakushin","×","○","×","通帳2",  "durahan"],
+        ["bakushin","×","○","×","通帳1","durahan"],
+        ["bakushin","×","○","×","通帳2","durahan"],
         ["bakushin","×","○","○","通帳なし","durahan"],
-        ["bakushin","×","○","○","通帳1",  "durahan"],
-        ["bakushin","×","○","○","通帳2",  "durahan"],
+        ["bakushin","×","○","○","通帳1","durahan"],
+        ["bakushin","×","○","○","通帳2","durahan"],
         ["bakushin","○","×","×","通帳なし","durahan"],
-        ["bakushin","○","×","×","通帳1",  "durahan"],
-        ["bakushin","○","×","×","通帳2",  "durahan"],
+        ["bakushin","○","×","×","通帳1","durahan"],
+        ["bakushin","○","×","×","通帳2","durahan"],
         ["bakushin","○","×","○","通帳なし","durahan"],
-        ["bakushin","○","×","○","通帳1",  "durahan"],
-        ["bakushin","○","×","○","通帳2",  "durahan"],
+        ["bakushin","○","×","○","通帳1","durahan"],
+        ["bakushin","○","×","○","通帳2","durahan"],
         ["bakushin","○","○","×","通帳なし","durahan"],
-        ["bakushin","○","○","×","通帳1",  "durahan"],
-        ["bakushin","○","○","×","通帳2",  "durahan"],
+        ["bakushin","○","○","×","通帳1","durahan"],
+        ["bakushin","○","○","×","通帳2","durahan"],
         ["bakushin","○","○","○","通帳なし","rita_or_kuma"],
-        ["bakushin","○","○","○","通帳1",  "durahan"],
-        ["bakushin","○","○","○","通帳2",  "durahan"],
+        ["bakushin","○","○","○","通帳1","durahan"],
+        ["bakushin","○","○","○","通帳2","durahan"],
       ];
       const map = {};
-      rows.forEach(([elix,tr,ag,em,pb,result]) => {
-        const key = `${elix}|${tr}|${ag}|${em}|${pb}`;
-        map[key] = result;
+      rows.forEach(([elix, tr, ag, em, pb, result]) => {
+        map[`${elix}|${tr}|${ag}|${em}|${pb}`] = result;
       });
       return map;
     })(),
 
     CSV1_TABLE: (function () {
       const rows = [
-        ["returner",false,false,false,true,false,"genki",11],
-        ["returner",false,false,true,true,false,"none",11],
-        ["returner",false,false,true,true,false,"genki",10],
-        ["returner",true,false,false,true,false,"genki",10],
-        ["returner",true,false,true,true,false,"none",10],
-        ["returner",true,false,true,true,false,"genki",8],
-        ["durahan",false,false,false,false,false,"genki",12],
-        ["durahan",false,false,false,false,true,"genki",12],
-        ["durahan",false,false,false,true,false,"none",9],
-        ["durahan",false,false,false,true,false,"genki",7],
-        ["durahan",false,false,false,true,true,"genki",12],
-        ["durahan",false,false,true,false,false,"none",12],
-        ["durahan",false,false,true,false,false,"genki",9],
-        ["durahan",false,false,true,false,true,"none",12],
-        ["durahan",false,false,true,false,true,"genki",9],
-        ["durahan",false,false,true,true,false,"none",7],
-        ["durahan",false,false,true,true,false,"genki",6],
-        ["durahan",false,false,true,true,false,"bakushin",11],
-        ["durahan",false,false,true,true,true,"none",12],
-        ["durahan",false,false,true,true,true,"genki",9],
-        ["durahan",false,true,false,true,false,"bakushin",11],
-        ["durahan",false,true,true,true,false,"genki",11],
-        ["durahan",false,true,true,true,false,"bakushin",9],
-        ["durahan",true,false,false,false,false,"genki",10],
-        ["durahan",true,false,false,false,true,"genki",10],
-        ["durahan",true,false,false,true,false,"none",8],
-        ["durahan",true,false,false,true,false,"genki",6],
-        ["durahan",true,false,false,true,false,"bakushin",12],
-        ["durahan",true,false,false,true,true,"genki",10],
-        ["durahan",true,false,true,false,false,"none",10],
-        ["durahan",true,false,true,false,false,"genki",8],
-        ["durahan",true,false,true,false,true,"none",10],
-        ["durahan",true,false,true,false,true,"genki",8],
-        ["durahan",true,false,true,true,false,"none",6],
-        ["durahan",true,false,true,true,false,"genki",5],
-        ["durahan",true,false,true,true,false,"bakushin",10],
-        ["durahan",true,false,true,true,true,"none",10],
-        ["durahan",true,false,true,true,true,"genki",8],
-        ["durahan",true,true,false,true,false,"genki",12],
-        ["durahan",true,true,false,true,false,"bakushin",10],
-        ["durahan",true,true,true,false,false,"bakushin",12],
-        ["durahan",true,true,true,false,true,"bakushin",12],
-        ["durahan",true,true,true,true,false,"none",12],
-        ["durahan",true,true,true,true,false,"genki",10],
-        ["durahan",true,true,true,true,false,"bakushin",9],
-        ["durahan",true,true,true,true,true,"bakushin",12],
-        ["dearthlicant",false,false,false,true,false,"genki",10],
-        ["dearthlicant",false,false,true,true,false,"none",10],
-        ["dearthlicant",false,false,true,true,false,"genki",8],
-        ["dearthlicant",true,false,false,true,false,"none",12],
-        ["dearthlicant",true,false,false,true,false,"genki",9],
-        ["dearthlicant",true,false,true,false,false,"genki",12],
-        ["dearthlicant",true,false,true,false,true,"genki",12],
-        ["dearthlicant",true,false,true,true,false,"none",9],
-        ["dearthlicant",true,false,true,true,false,"genki",7],
-        ["dearthlicant",true,false,true,true,true,"genki",12],
+        ["returner", false, false, false, true, false, "genki", 11],
+        ["returner", false, false, true, true, false, "none", 11],
+        ["returner", false, false, true, true, false, "genki", 10],
+        ["returner", true, false, false, true, false, "genki", 10],
+        ["returner", true, false, true, true, false, "none", 10],
+        ["returner", true, false, true, true, false, "genki", 8],
+        ["durahan", false, false, false, false, false, "genki", 12],
+        ["durahan", false, false, false, false, true, "genki", 12],
+        ["durahan", false, false, false, true, false, "none", 9],
+        ["durahan", false, false, false, true, false, "genki", 7],
+        ["durahan", false, false, false, true, true, "genki", 12],
+        ["durahan", false, false, true, false, false, "none", 12],
+        ["durahan", false, false, true, false, false, "genki", 9],
+        ["durahan", false, false, true, false, true, "none", 12],
+        ["durahan", false, false, true, false, true, "genki", 9],
+        ["durahan", false, false, true, true, false, "none", 7],
+        ["durahan", false, false, true, true, false, "genki", 6],
+        ["durahan", false, false, true, true, false, "bakushin", 11],
+        ["durahan", false, false, true, true, true, "none", 12],
+        ["durahan", false, false, true, true, true, "genki", 9],
+        ["durahan", false, true, false, true, false, "bakushin", 11],
+        ["durahan", false, true, true, true, false, "genki", 11],
+        ["durahan", false, true, true, true, false, "bakushin", 9],
+        ["durahan", true, false, false, false, false, "genki", 10],
+        ["durahan", true, false, false, false, true, "genki", 10],
+        ["durahan", true, false, false, true, false, "none", 8],
+        ["durahan", true, false, false, true, false, "genki", 6],
+        ["durahan", true, false, false, true, false, "bakushin", 12],
+        ["durahan", true, false, false, true, true, "genki", 10],
+        ["durahan", true, false, true, false, false, "none", 10],
+        ["durahan", true, false, true, false, false, "genki", 8],
+        ["durahan", true, false, true, false, true, "none", 10],
+        ["durahan", true, false, true, false, true, "genki", 8],
+        ["durahan", true, false, true, true, false, "none", 6],
+        ["durahan", true, false, true, true, false, "genki", 5],
+        ["durahan", true, false, true, true, false, "bakushin", 10],
+        ["durahan", true, false, true, true, true, "none", 10],
+        ["durahan", true, false, true, true, true, "genki", 8],
+        ["durahan", true, true, false, true, false, "genki", 12],
+        ["durahan", true, true, false, true, false, "bakushin", 10],
+        ["durahan", true, true, true, false, false, "bakushin", 12],
+        ["durahan", true, true, true, false, true, "bakushin", 12],
+        ["durahan", true, true, true, true, false, "none", 12],
+        ["durahan", true, true, true, true, false, "genki", 10],
+        ["durahan", true, true, true, true, false, "bakushin", 9],
+        ["durahan", true, true, true, true, true, "bakushin", 12],
+        ["dearthlicant", false, false, false, true, false, "genki", 10],
+        ["dearthlicant", false, false, true, true, false, "none", 10],
+        ["dearthlicant", false, false, true, true, false, "genki", 8],
+        ["dearthlicant", true, false, false, true, false, "none", 12],
+        ["dearthlicant", true, false, false, true, false, "genki", 9],
+        ["dearthlicant", true, false, true, false, false, "genki", 12],
+        ["dearthlicant", true, false, true, false, true, "genki", 12],
+        ["dearthlicant", true, false, true, true, false, "none", 9],
+        ["dearthlicant", true, false, true, true, false, "genki", 7],
+        ["dearthlicant", true, false, true, true, true, "genki", 12],
       ];
       const map = {};
-      rows.forEach(([mid,food,tr,em,ag,pb,elix,num]) => {
-        const key = `${mid}|${food}|${tr}|${em}|${ag}|${pb}|${elix}`;
-        map[key] = num;
+      rows.forEach(([mid, food, tr, em, ag, pb, elix, num]) => {
+        map[`${mid}|${food}|${tr}|${em}|${ag}|${pb}|${elix}`] = num;
       });
       return map;
     })(),
 
     lookupOptimalMonster: function () {
       const elixir = document.querySelector('input[name="e_exp"]:checked')?.value || "none";
-      const tr     = this.$("tr").checked ? "○" : "×";
-      const ag     = this.$("ag").checked ? "○" : "×";
-      const em     = this.$("em").checked ? "○" : "×";
-      const pbVal  = this.$("pb").value;
-      const pb     = pbVal === "5000000" ? "通帳1" : pbVal === "10000000" ? "通帳2" : "通帳なし";
+      const tr = this.$("tr").checked ? "○" : "×";
+      const ag = this.$("ag").checked ? "○" : "×";
+      const em = this.$("em").checked ? "○" : "×";
+      const pbVal = this.$("pb").value;
+      const pb = pbVal === "5000000" ? "通帳1" : pbVal === "10000000" ? "通帳2" : "通帳なし";
 
       if (elixir === "none") return "durahan";
 
@@ -180,19 +170,19 @@
       if (!result) return "durahan";
 
       if (result === "rita_or_kuma") {
-        return this.ritaOrKuma || "returner";
+        return this.ritaOrKuma;  // "returner" または "dearthlicant"
       }
       return result;
     },
 
     lookupOptimalCallCount: function () {
-      const ms     = this.$("ms").value;
-      const food   = this.$("fd").checked;
-      const tr     = this.$("tr").checked;
-      const em     = this.$("em").checked;
-      const ag     = this.$("ag").checked;
-      const pbVal  = this.$("pb").value;
-      const pb     = pbVal !== "0";
+      const ms = this.$("ms").value;
+      const food = this.$("fd").checked;
+      const tr = this.$("tr").checked;
+      const em = this.$("em").checked;
+      const ag = this.$("ag").checked;
+      const pbVal = this.$("pb").value;
+      const pb = pbVal !== "0";
       const elixir = document.querySelector('input[name="e_exp"]:checked')?.value || "none";
 
       const key = `${ms}|${food}|${tr}|${em}|${ag}|${pb}|${elixir}`;
@@ -210,9 +200,7 @@
       return opt;
     },
 
-    $: function (id) {
-      return document.getElementById(id);
-    },
+    $: function (id) { return document.getElementById(id); },
 
     formatTime: function (sec) {
       if (isNaN(sec) || sec < 0 || sec === Infinity) return "00:00.00";
@@ -225,7 +213,7 @@
       let rate = 1.0;
       if (this.$("fd").checked) rate += 0.3;
       const elixirType = document.querySelector('input[name="e_exp"]:checked')?.value || "none";
-      if (elixirType === "genki")   rate += 1;
+      if (elixirType === "genki") rate += 1;
       if (elixirType === "bakushin") rate += 2;
       if (this.$("tr").checked) rate += 1;
       if (this.$("em").checked) rate += 1;
@@ -243,79 +231,79 @@
       let baseExp, bonusExp;
       if (snap) {
         const msOption = document.querySelector(`#ms option[value="${snap.ms}"]`);
-        baseExp  = parseInt(msOption?.dataset.base)  || 0;
+        baseExp = parseInt(msOption?.dataset.base) || 0;
         bonusExp = parseInt(msOption?.dataset.bonus) || 0;
       } else {
         const selectedOption = this.$("ms").options[this.$("ms").selectedIndex];
-        baseExp  = parseInt(selectedOption.dataset.base)  || 0;
+        baseExp = parseInt(selectedOption.dataset.base) || 0;
         bonusExp = parseInt(selectedOption.dataset.bonus) || 0;
       }
 
-      const fd       = snap ? snap.fd       : this.$("fd").checked;
-      const tr       = snap ? snap.tr       : this.$("tr").checked;
-      const ag       = snap ? snap.ag       : this.$("ag").checked;
-      const em       = snap ? snap.em       : this.$("em").checked;
-      const elixir   = snap ? snap.elixir   : (document.querySelector('input[name="e_exp"]:checked')?.value || "none");
-      const pbVal    = snap ? snap.pb       : this.$("pb").value;
+      const fd = snap ? snap.fd : this.$("fd").checked;
+      const tr = snap ? snap.tr : this.$("tr").checked;
+      const ag = snap ? snap.ag : this.$("ag").checked;
+      const em = snap ? snap.em : this.$("em").checked;
+      const elixir = snap ? snap.elixir : (document.querySelector('input[name="e_exp"]:checked')?.value || "none");
+      const pbVal = snap ? snap.pb : this.$("pb").value;
 
       let rate = 1.0;
       if (fd) rate += 0.3;
-      if (elixir === "genki")    rate += 1;
+      if (elixir === "genki") rate += 1;
       if (elixir === "bakushin") rate += 2;
       if (tr) rate += 1;
       if (em) rate += 1;
 
       const applyLimitWithFd = (val, limit) => {
-        const rounded   = Math.round(val);
+        const rounded = Math.round(val);
         const isNearInt = Math.abs(val - rounded) < 0.1;
-        const ceiled    = fd && isNearInt ? rounded + 1 : Math.ceil(val);
+        const ceiled = fd && isNearInt ? rounded + 1 : Math.ceil(val);
         return Math.min(ceiled, limit);
       };
 
       const partnerExpVal = this.PARTNER_EXP[partnerKey] || 0;
-      const hasAngel      = ag;
+      const hasAngel = ag;
       const passbookLimit = parseInt(pbVal) || 0;
-      const hasPassbook   = passbookLimit > 0;
+      const hasPassbook = passbookLimit > 0;
 
       const isHighLimit = elixir === "bakushin" || tr;
-      const expLimit    = isHighLimit ? 1499999 : 599999;
-      const angelLimit  = 599999;
+      const expLimit = isHighLimit ? 1499999 : 599999;
+      const angelLimit = 599999;
 
       const rawCommonPerKill = baseExp * rate + bonusExp;
-      const rawAngelPerKill  = hasAngel ? baseExp * 2 : 0;
+      const rawAngelPerKill = hasAngel ? baseExp * 2 : 0;
       const rawPartnerCommon = partnerExpVal * rate;
-      const rawPartnerAngel  = hasAngel ? partnerExpVal * 2 : 0;
+      const rawPartnerAngel = hasAngel ? partnerExpVal * 2 : 0;
 
       const rawTotalCommon = rawCommonPerKill * callCount + rawPartnerCommon;
-      const rawTotalAngel  = rawAngelPerKill  * callCount + rawPartnerAngel;
-      const rawTotal       = rawTotalCommon + rawTotalAngel;
+      const rawTotalAngel = rawAngelPerKill * callCount + rawPartnerAngel;
+      const rawTotal = rawTotalCommon + rawTotalAngel;
 
       if (hasPassbook) {
         const commonCapped = Math.min(rawTotalCommon, expLimit);
-        const angelCapped  = Math.min(rawTotalAngel, angelLimit);
+        const angelCapped = Math.min(rawTotalAngel, angelLimit);
         const totalOverflow = (rawTotalCommon - commonCapped) + (rawTotalAngel - angelCapped);
         const common = applyLimitWithFd(commonCapped, expLimit);
-        const angel  = Math.min(Math.ceil(angelCapped), angelLimit);
+        const angel = Math.min(Math.ceil(angelCapped), angelLimit);
         return {
-          total:           common + angel,
+          total: common + angel,
           common,
           angel,
-          overflow:        Math.ceil(totalOverflow),
-          rawTotalCapped:  commonCapped + angelCapped,
+          overflow: Math.ceil(totalOverflow),
+          rawTotalCapped: commonCapped + angelCapped,
           rawCommonCapped: commonCapped,
-          rawAngelCapped:  angelCapped,
+          rawAngelCapped: angelCapped,
         };
       } else {
         const cappedTotal = Math.min(rawTotal, expLimit);
         const total = applyLimitWithFd(cappedTotal, expLimit);
         return {
           total,
-          common:          total,
-          angel:           0,
-          overflow:        Math.ceil(rawTotal - cappedTotal),
-          rawTotalCapped:  cappedTotal,
+          common: total,
+          angel: 0,
+          overflow: Math.ceil(rawTotal - cappedTotal),
+          rawTotalCapped: cappedTotal,
           rawCommonCapped: cappedTotal,
-          rawAngelCapped:  0,
+          rawAngelCapped: 0,
         };
       }
     },
@@ -327,7 +315,7 @@
         }
         const ctx = this.audioCtx;
         const playBeep = (freq, startTime, duration) => {
-          const osc  = ctx.createOscillator();
+          const osc = ctx.createOscillator();
           const gain = ctx.createGain();
           osc.connect(gain);
           gain.connect(ctx.destination);
@@ -338,14 +326,14 @@
           osc.start(startTime);
           osc.stop(startTime + duration);
         };
-        playBeep(1800, ctx.currentTime,        0.25);
+        playBeep(1800, ctx.currentTime, 0.25);
         playBeep(1600, ctx.currentTime + 0.35, 0.35);
-      } catch (e) {}
+      } catch (e) { }
     },
 
     updateUI: function (autoSetCount = false) {
       const passbookLimit = parseInt(this.$("pb").value) || 0;
-      const passbookArea  = this.$("passbookArea");
+      const passbookArea = this.$("passbookArea");
 
       if (passbookLimit > 0) {
         passbookArea.classList.remove("hidden");
@@ -373,8 +361,8 @@
       const lapTimes = [];
       document.querySelectorAll(".exp-row").forEach(el => {
         if (el.dataset.lap && el.dataset.lap !== "-1" &&
-            el.dataset.type !== "lap_only" && el.dataset.type !== "job" &&
-            el.dataset.main === "true") {
+          el.dataset.type !== "lap_only" && el.dataset.type !== "job" &&
+          el.dataset.main === "true") {
           lapTimes.push(parseFloat(el.dataset.lap));
         }
       });
@@ -385,7 +373,7 @@
     addRow: function (rowId, callCount, expVal, rowType, elapsedSec, lapSec, isMain = false, rawCapped = null, monsterId = null, hasDeathPenalty = false) {
       const row = document.createElement("div");
       row.className = "exp-row h";
-      row.dataset.val         = expVal;
+      row.dataset.val = expVal;
       row.dataset.rawValCapped = rawCapped !== null ? rawCapped : expVal;
 
       const snapshot = {
@@ -397,30 +385,30 @@
         pb: this.$("pb").value,
         ms: monsterId || this.$("ms").value,
       };
-      row.dataset.snapshot    = JSON.stringify(snapshot);
-      row.dataset.type        = rowType;
-      row.dataset.sec         = elapsedSec;
-      row.dataset.lap         = lapSec != null ? lapSec : -1;
-      row.dataset.main        = isMain;
-      row.dataset.count       = callCount;
-      row.dataset.bid         = rowId;
-      row.dataset.monsterId   = monsterId || this.$("ms").value;
-      row.dataset.desp        = hasDeathPenalty ? "true" : "false";
+      row.dataset.snapshot = JSON.stringify(snapshot);
+      row.dataset.type = rowType;
+      row.dataset.sec = elapsedSec;
+      row.dataset.lap = lapSec != null ? lapSec : -1;
+      row.dataset.main = isMain;
+      row.dataset.count = callCount;
+      row.dataset.bid = rowId;
+      row.dataset.monsterId = monsterId || this.$("ms").value;
+      row.dataset.desp = hasDeathPenalty ? "true" : "false";
 
       const TYPE_LABEL = {
-        pass:     "[通]",
-        angel:    "[エ]",
+        pass: "[通]",
+        angel: "[エ]",
         overflow: "[溢]",
-        normal:   "",
+        normal: "",
         lap_only: "[LAP]",
-        job:      "転職",
+        job: "転職",
       };
       const TYPE_COLOR = {
-        pass:     "#f88",
-        angel:    "#5a9eff",
+        pass: "#f88",
+        angel: "#5a9eff",
         overflow: "#aaa",
         lap_only: "#2cc9ff",
-        job:      "#00bcd4",
+        job: "#00bcd4",
       };
 
       const rowIdHtml = rowId === "LAP"
@@ -461,14 +449,14 @@
 
       const controlsHtml = (rowId !== "LAP" && rowType !== "job")
         ? `<div class="row-controls" style="display:flex; gap:4px; align-items:center; flex:1;">` +
-          `<select class="rs" style="flex:1.2;">` +
-          `${this.getPartnerOptions(row.dataset.monsterId)}</select>` +
-          `<select class="cs" style="width:55px;">` +
-          `${this.CALL_LABELS.map((label, i) =>
-            i > 0 ? `<option value="${i}" ${i == callCount ? "selected" : ""}>${label}</option>` : ""
-          ).join("")}` +
-          `</select>` +
-          `</div>`
+        `<select class="rs" style="flex:1.2;">` +
+        `${this.getPartnerOptions(row.dataset.monsterId)}</select>` +
+        `<select class="cs" style="width:55px;">` +
+        `${this.CALL_LABELS.map((label, i) =>
+          i > 0 ? `<option value="${i}" ${i == callCount ? "selected" : ""}>${label}</option>` : ""
+        ).join("")}` +
+        `</select>` +
+        `</div>`
         : `<div class="row-controls-placeholder">----------</div>`;
 
       row.innerHTML =
@@ -483,17 +471,16 @@
 
         const recalcRowExp = () => {
           const snap = JSON.parse(row.dataset.snapshot);
-          const newCallCount  = parseInt(row.querySelector(".cs").value);
+          const newCallCount = parseInt(row.querySelector(".cs").value);
           const newPartnerKey = row.querySelector(".rs").value;
-          row.dataset.count   = newCallCount;
-          const expResult     = self.calcExp(newCallCount, newPartnerKey, snap);
-          const newExpVal     = row.dataset.type === "angel"   ? expResult.angel
-                              : row.dataset.type === "pass"    ? expResult.common
-                              : expResult.total;
-          row.dataset.val          = newExpVal;
+          row.dataset.count = newCallCount;
+          const expResult = self.calcExp(newCallCount, newPartnerKey, snap);
+          const newExpVal = row.dataset.type === "angel" ? expResult.angel
+            : row.dataset.type === "pass" ? expResult.common
+              : expResult.total;
+          row.dataset.val = newExpVal;
           row.dataset.rawValCapped = newExpVal;
           row.querySelector(".exp-value").textContent = newExpVal.toLocaleString();
-
           self.updateTotal();
         };
 
@@ -516,7 +503,7 @@
       if (delBtn) {
         delBtn.onclick = () => {
           const deletedType = row.dataset.type;
-          const deletedBid  = row.dataset.bid;
+          const deletedBid = row.dataset.bid;
 
           if (deletedType !== "angel") {
             document.querySelectorAll(".exp-row").forEach(r => {
@@ -579,11 +566,11 @@
     },
 
     updateTotal: function () {
-      let totalExp    = 0;
+      let totalExp = 0;
       let passbookExp = 0;
-      let lapTimes    = [];
-      let penaltyMin  = 0;
-      let penaltyMax  = 0;
+      let lapTimes = [];
+      let penaltyMin = 0;
+      let penaltyMax = 0;
 
       document.querySelectorAll(".exp-row").forEach(el => {
         const expVal = parseInt(el.dataset.val) || 0;
@@ -610,7 +597,7 @@
           el.dataset.type !== "job"
         ) {
           const rawCapped = parseFloat(el.dataset.rawValCapped) || parseInt(el.dataset.val) || 0;
-          const lapSec    = parseFloat(el.dataset.lap);
+          const lapSec = parseFloat(el.dataset.lap);
           if (lapSec > 6.45) {
             penaltyMin += rawCapped * (6.45 / lapSec);
             penaltyMax += rawCapped * (2.58 / lapSec);
@@ -669,8 +656,8 @@
     },
 
     updateTimerDisplay: function (elapsedSec) {
-      this.$("timerDisplay").textContent    = this.formatTime(elapsedSec);
-      this.$("lapTimeDisplay").textContent  = this.formatTime(elapsedSec - this.lastLapSec);
+      this.$("timerDisplay").textContent = this.formatTime(elapsedSec);
+      this.$("lapTimeDisplay").textContent = this.formatTime(elapsedSec - this.lastLapSec);
       const syncSec = Math.max(0, elapsedSec - this.jobOffsetSec);
       this.$("syncDisplay").innerHTML = syncSec > 0
         ? `オプション持続: ${this.formatTime(syncSec)}`
@@ -923,7 +910,6 @@
         };
       }
 
-      // LAPボタン
       this.$("btnLap").onclick = () => {
         const elapsedSec = this.timer
           ? (Date.now() - this.startTime) / 1000
@@ -935,7 +921,6 @@
         this.updateTimerDisplay(elapsedSec);
       };
 
-      // 既存のイベントリスナー
       this.$("btnCalc").onclick = () => {
         if (Date.now() < this.calcLockedUntil) return;
         this.lapNotifyFired = false;
@@ -943,9 +928,9 @@
         const elapsedSec = this.timer
           ? (Date.now() - this.startTime) / 1000
           : this.pauseSec;
-        const lapSec     = this.timer ? (elapsedSec - this.lastLapSec) : null;
-        const callCount  = parseInt(this.$("cn").value);
-        const expResult  = this.calcExp(callCount);
+        const lapSec = this.timer ? (elapsedSec - this.lastLapSec) : null;
+        const callCount = parseInt(this.$("cn").value);
+        const expResult = this.calcExp(callCount);
         const passbookLimit = parseInt(this.$("pb").value) || 0;
 
         if (passbookLimit > 0) {
@@ -958,7 +943,7 @@
             if (!isNaN(raw)) accumulatedRaw += raw;
           });
           const remainingRaw = Math.max(0, passbookLimit - (accumulatedRaw - this.passbookOffset));
-          const remaining    = Math.ceil(remainingRaw);
+          const remaining = Math.ceil(remainingRaw);
 
           if (remaining >= expResult.common) {
             this.addRow(this.killCount, callCount, expResult.common, "pass", elapsedSec, lapSec, true, expResult.common, null, false);
@@ -996,11 +981,11 @@
 
       this.$("btnAllClear").onclick = () => {
         if (this.timer) { clearInterval(this.timer); this.timer = null; }
-        this.pauseSec       = 0;
-        this.startTime      = 0;
-        this.lastLapSec     = 0;
-        this.killCount      = 0;
-        this.jobOffsetSec   = 0;
+        this.pauseSec = 0;
+        this.startTime = 0;
+        this.lastLapSec = 0;
+        this.killCount = 0;
+        this.jobOffsetSec = 0;
         this.passbookOffset = 0;
         this.$("rowHistory").innerHTML = "";
         this.updateTimerDisplay(0);
@@ -1042,7 +1027,7 @@
         this.updateUI(false);
       };
       this.$("btnKuma").onclick = () => {
-        this.ritaOrKuma = "scare";
+        this.ritaOrKuma = "dearthlicant";
         this.$("btnKuma").classList.add("active-rita-kuma");
         this.$("btnRita").classList.remove("active-rita-kuma");
         this.updateUI(false);
@@ -1057,7 +1042,7 @@
       this.$("btnTimerStop").onclick = () => {
         if (!this.timer) {
           if (!this.audioCtx) {
-            try { this.audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e) {}
+            try { this.audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { }
           }
           this.startTime = Date.now() - this.pauseSec * 1000;
           this.timer = setInterval(() => {
@@ -1123,7 +1108,7 @@
 
           document.querySelectorAll(".exp-row").forEach(el => {
             const rowType = el.dataset.type || "";
-            const rowId   = el.dataset.bid  || "-";
+            const rowId = el.dataset.bid || "-";
 
             if (rowType === "lap_only") {
               lines.push(`${rowId}/LAPMARK////`);
@@ -1135,18 +1120,18 @@
               return;
             }
 
-            const timeStr   = this.formatTime(parseFloat(el.dataset.sec) || 0);
-            const expVal    = (parseInt(el.dataset.val) || 0).toString();
-            const callIdx   = parseInt(el.dataset.count);
+            const timeStr = this.formatTime(parseFloat(el.dataset.sec) || 0);
+            const expVal = (parseInt(el.dataset.val) || 0).toString();
+            const callIdx = parseInt(el.dataset.count);
             const callLabel = !isNaN(callIdx) ? (this.CALL_LABELS[callIdx] || "--") : "--";
             const partnerSelect = el.querySelector(".rs");
-            const partnerLabel  = partnerSelect
+            const partnerLabel = partnerSelect
               ? (partnerSelect.options[partnerSelect.selectedIndex]?.text || "お供無")
               : "お供無";
-            const typeLabel = rowType === "pass"     ? "通帳"
-                            : rowType === "angel"    ? "エンゼル"
-                            : rowType === "overflow" ? "溢れ"
-                            : "通常";
+            const typeLabel = rowType === "pass" ? "通帳"
+              : rowType === "angel" ? "エンゼル"
+                : rowType === "overflow" ? "溢れ"
+                  : "通常";
             lines.push(`${rowId}/${timeStr}/${expVal}/${callLabel}/${partnerLabel}/${typeLabel}`);
           });
 
@@ -1185,10 +1170,10 @@
         clearInterval(ExpCalc.timer);
         ExpCalc.timer = null;
       }
-      ExpCalc.startTime      = 0;
-      ExpCalc.pauseSec       = 0;
-      ExpCalc.lastLapSec     = 0;
-      ExpCalc.jobOffsetSec   = 0;
+      ExpCalc.startTime = 0;
+      ExpCalc.pauseSec = 0;
+      ExpCalc.lastLapSec = 0;
+      ExpCalc.jobOffsetSec = 0;
       ExpCalc.passbookOffset = 0;
     },
   };
