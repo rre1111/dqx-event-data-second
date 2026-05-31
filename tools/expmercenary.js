@@ -1,7 +1,8 @@
-// ========== 傭兵用多機能ツール ver1.6.0 ==========
+// ========== 傭兵用多機能ツール ver1.6.1 ==========
 // 変更履歴:
-// - 履歴レイアウト改修: 削除ボタンを時間の隣に移動、呼び数+ボタン追加
-// - LAP超過音声通知機能追加（デフォルトOFF、localStorage保存）
+// - 履歴レイアウト改修: 削除ボタンを時間の隣に移動
+// - LAP超過音声通知機能追加（デフォルトOFF、localStorage保存、ビープ音1800Hz→1600Hz）
+// - スマホ表示対応のため+/-ボタン削除（プルダウンのみ）
 
 (function (global) {
 
@@ -337,8 +338,8 @@
           osc.start(startTime);
           osc.stop(startTime + duration);
         };
-        playBeep(2000, ctx.currentTime,        0.25);
-        playBeep(1800, ctx.currentTime + 0.35, 0.35);
+        playBeep(1800, ctx.currentTime,        0.25);
+        playBeep(1600, ctx.currentTime + 0.35, 0.35);
       } catch (e) {}
     },
 
@@ -462,15 +463,11 @@
         ? `<div class="row-controls" style="display:flex; gap:4px; align-items:center; flex:1;">` +
           `<select class="rs" style="flex:1.2;">` +
           `${this.getPartnerOptions(row.dataset.monsterId)}</select>` +
-          `<div style="display:flex; align-items:center; gap:2px;">` +
-          `<button class="dec-call" style="width:26px;height:26px;border-radius:4px;background:#0066cc;color:#fff;border:none;cursor:pointer;font-weight:bold;font-size:14px;">-</button>` +
           `<select class="cs" style="width:55px;">` +
           `${this.CALL_LABELS.map((label, i) =>
             i > 0 ? `<option value="${i}" ${i == callCount ? "selected" : ""}>${label}</option>` : ""
           ).join("")}` +
           `</select>` +
-          `<button class="inc-call" style="width:26px;height:26px;border-radius:4px;background:#0066cc;color:#fff;border:none;cursor:pointer;font-weight:bold;font-size:14px;">+</button>` +
-          `</div>` +
           `</div>`
         : `<div class="row-controls-placeholder">----------</div>`;
 
@@ -505,22 +502,6 @@
 
         const rsSelect = row.querySelector(".rs");
         rsSelect.onchange = recalcRowExp;
-
-        const incBtn = row.querySelector(".inc-call");
-        incBtn.onclick = () => {
-          let newVal = parseInt(csSelect.value) + 1;
-          if (newVal > 12) newVal = 12;
-          csSelect.value = newVal;
-          recalcRowExp();
-        };
-
-        const decBtn = row.querySelector(".dec-call");
-        decBtn.onclick = () => {
-          let newVal = parseInt(csSelect.value) - 1;
-          if (newVal < 1) newVal = 1;
-          csSelect.value = newVal;
-          recalcRowExp();
-        };
 
         const despCheckbox = row.querySelector(".desp-tgl");
         if (despCheckbox) {
@@ -822,7 +803,7 @@
   <div style="display:flex;gap:6px;margin-bottom:6px;align-items:center">
     <div class="notify-toggle">
       <input type="checkbox" id="lapNotifyToggle" ${this.lapNotifyEnabled ? 'checked' : ''}>
-      <label for="lapNotifyToggle">🔊 LAP通知</label>
+      <label for="lapNotifyToggle">🔊 LAP</label>
     </div>
     <select id="ms" class="monster-select" style="flex:2;padding:6px;font-size:15px;border:1px solid #7ab8ff;border-radius:4px;font-weight:bold">
       <option value="returner"      data-base="13118" data-bonus="0">リターナーモア</option>
@@ -954,7 +935,7 @@
         this.updateTimerDisplay(elapsedSec);
       };
 
-      // 既存のイベントリスナー（変更なし）
+      // 既存のイベントリスナー
       this.$("btnCalc").onclick = () => {
         if (Date.now() < this.calcLockedUntil) return;
         this.lapNotifyFired = false;
@@ -1075,7 +1056,6 @@
 
       this.$("btnTimerStop").onclick = () => {
         if (!this.timer) {
-          // AudioContextをユーザー操作中に事前初期化（Autoplay制限回避＋初回遅延防止）
           if (!this.audioCtx) {
             try { this.audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e) {}
           }
@@ -1084,7 +1064,6 @@
             const elapsedSec = (Date.now() - this.startTime) / 1000;
             this.updateTimerDisplay(elapsedSec);
 
-            // 平均LAP超過チェック
             if (this.lapNotifyEnabled) {
               const avgSec = this.getAverageLapSec();
               const currentLapSec = elapsedSec - this.lastLapSec;
