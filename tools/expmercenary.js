@@ -1,10 +1,10 @@
-// ========== 傭兵用多機能ツール ver1.6.3 ==========
+// ========== 傭兵用多機能ツール ver1.6.4 ==========
 // 変更履歴:
 // - 履歴レイアウト改修: 削除ボタンを時間の隣に移動
 // - LAP超過音声通知機能追加（デフォルトOFF、ビープ音1800Hz→1600Hz）
 // - スマホ表示対応のため+/-ボタン削除（プルダウンのみ）
 // - クマ選択時の最適モンスターを「ダースリカント」に修正
-// - 最適モンスターボタン押下時フィードバック（同じ時:緑、変わる時:赤）
+// - 最適モンスターボタン: 現在が最適な場合はグレーアウト
 
 (function (global) {
 
@@ -352,10 +352,27 @@
       this.$("currentExpDisplay").textContent = expResult.total.toLocaleString();
       this.$("overflowDisplay").style.visibility = expResult.overflow > 0 ? "visible" : "hidden";
       this.$("overflowDisplay").textContent = `溢れ:${expResult.overflow.toLocaleString()}`;
+      
+      this.checkOptimalMonsterButton();
     },
 
     calcOptimalCallCount: function () {
       this.optCallCount = this.lookupOptimalCallCount();
+    },
+
+    checkOptimalMonsterButton: function () {
+      const currentMonster = this.$("ms").value;
+      const monsterId = this.lookupOptimalMonster();
+      const btn = this.$("btnOptMonster");
+      if (currentMonster === monsterId) {
+        btn.disabled = true;
+        btn.style.opacity = "0.5";
+        btn.style.cursor = "not-allowed";
+      } else {
+        btn.disabled = false;
+        btn.style.opacity = "1";
+        btn.style.cursor = "pointer";
+      }
     },
 
     getAverageLapSec: function () {
@@ -1035,25 +1052,9 @@
       };
 
       this.$("btnOptMonster").onclick = () => {
-        const currentMonster = this.$("ms").value;
         const monsterId = this.lookupOptimalMonster();
-        const msSelect = this.$("ms");
-        
-        if (currentMonster === monsterId) {
-          msSelect.style.transition = "background-color 0.1s";
-          msSelect.style.backgroundColor = "#ccffcc";
-          setTimeout(() => {
-            msSelect.style.backgroundColor = "";
-          }, 200);
-        } else {
-          msSelect.style.transition = "background-color 0.1s";
-          msSelect.style.backgroundColor = "#ffcccc";
-          setTimeout(() => {
-            msSelect.style.backgroundColor = "";
-            msSelect.value = monsterId;
-            this.updateUI(true);
-          }, 100);
-        }
+        this.$("ms").value = monsterId;
+        this.updateUI(true);
       };
 
       this.$("btnTimerStop").onclick = () => {
