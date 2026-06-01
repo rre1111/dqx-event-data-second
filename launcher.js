@@ -1,6 +1,6 @@
 // ==========ツールランチャー（改造版）=========
 // ========== バージョン管理 ==========
-const APP_VERSION = '3.1.2β';
+const APP_VERSION = '3.1.3β';
 
 // バージョン情報をグローバルに公開（HTML側と整合性チェック用）
 window.LAUNCHER_VERSION = APP_VERSION;
