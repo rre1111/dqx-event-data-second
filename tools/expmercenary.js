@@ -1311,7 +1311,7 @@ v1.1.7
 <style>
   /* ========== ライトモード ========== */
   #versionModal {
-    margin-top: 18px;
+    margin-top: 2px;
     border-top: 2px solid #7ab8ff;
     padding-top: 16px;
     padding-bottom: 80px;
