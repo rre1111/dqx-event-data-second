@@ -1309,6 +1309,7 @@ v1.1.7
     margin-top: 24px;
     border-top: 2px solid #7ab8ff;
     padding-top: 16px;
+    padding-bottom: 80px;
   }
   #versionModal > div {
     background: #ffffff;
