@@ -1148,7 +1148,7 @@
             }
           }
         }, 16);   // ~60fps
-        $("btnTimerStop").innerHTML = "タイマー<br>再開中";
+        $("btnTimerStop").innerHTML = "タイマー<br>作動中";
       };
 
       $("btnTimerPause").onclick = () => {
@@ -1232,7 +1232,7 @@
 <div id="versionModal" style="margin-top: 24px; border-top: 2px solid #7ab8ff; padding-top: 16px;">
   <div style="background:#fff; border-radius:12px; border:1px solid #ddd; overflow:hidden;">
     <div class="modal-header" style="display:flex; justify-content:space-between; align-items:center; padding:12px 16px;">
-  <span style="font-weight:bold; font-size:16px;">📋 傭兵用多機能ツール ver2.0.0</span>
+  <span style="font-weight:bold; font-size:16px;">⚔️ 傭兵用多機能ツール ver2.0.0</span>
 </div>
     </div>
     <div style="display:flex; border-bottom:1px solid #ddd;">
@@ -1242,10 +1242,9 @@
     </div>
     <div style="flex:1; overflow-y:auto; padding:16px; max-height:400px;">
       <div id="tab-terms" class="modal-tab-content" style="display:block;">
-        <p style="margin:0 0 12px 0;">本ツールは管理人本人の検証によるデータに基づいて制作されています。</p>
-        <p style="margin:0 0 12px 0;">結果を保証するためのものではありません。</p>
+        <p style="margin:0 0 12px 0;">本ツールは管理人が作成した検証データに基づいて制作されています。</p>
+        <p style="margin:0 0 12px 0;">本ツールは効率や計算結果を保証するためのものではありません。</p>
         <p style="margin:0; font-weight:bold;">内部データの無断転用、および二次利用は固く禁止します。</p>
-        <p style="margin:12px 0 0 0; font-size:11px; color:#888;">(C) ARMOR PROJECT/BIRD STUDIO/SQUARE ENIX All Rights Reserved.</p>
       </div>
       <div id="tab-data" class="modal-tab-content" style="display:none;">
         <img src="./images/ref_data.png" alt="参考データ" style="max-width:100%; height:auto; border-radius:6px;">
@@ -1255,47 +1254,53 @@
         <pre style="margin:0; font-size:12px; white-space:pre-wrap; font-family:monospace;">
 v2.0.0
   - CSV1/CSV2テーブル導入（最適値精度向上）
-  - リタ/クマ切り替え機能追加
-  - 最適モンスター自動選定ボタン追加
+  - リタ/クマ優先切り替え追加
+  - リタ/クマベース最適モンスター判定改善
+  - 最適モンスター選択ボタン追加
   - LAP音声通知機能追加
-  - デスペナルティ想定機能実装
+  - デスペナルティ想定機能調整
   - セキュリティ強化（XSS対策）
   - パフォーマンス改善（60fps）
   - 転職ボタン連打防止
   - 行削除時のAngel連動削除
-  - 「最適+1」ボタン廃止（テーブル高精度化に伴い）
-
-v1.5.6
-  - リタ/クマベース最適モンスター判定改善
-
+  - データテーブル実装に伴い「最適+1」ボタン廃止
+  - その他軽微な調整
+  
 v1.5.5
-  - デスペナルティ予測（仮実装）
+  - デスペナルティ予測(仮実装)
   - ゴーレム強/ダースリカント追加
-  - OCボタン追加 / 履歴コピーボタン追加
+  - OCボタン追加
+  - 履歴コピーボタン追加
+  - ブログ版1.5.5に対して軽微な変更
 
 v1.5.4
-  - 平均タイム表示拡大 / レイアウト調整
+  - 平均タイム表示拡大
+  - レイアウト調整
 
 v1.5.3
-  - ツール枠撤廃 / 内部ロジック調整
+  - ツール枠撤廃
+  - 内部ロジック調整
 
 v1.4.5
-  - 転職機能追加 / 計算ロジック調整
+  - 転職機能追加
+  - 計算ロジック調整
 
 v1.4.2
   - タイマー開始直後の加算ロック追加
 
 v1.4.1
-  - ダークモード導入 / 最適呼び数自動選択
+  - ダークモード導入
+  - 最適呼び数自動選択
 
 v1.2.8
-  - 通帳2上限修正 / AC時通帳バグ修正
+  - 通帳2上限修正
+  - AC時通帳バグ修正
 
 v1.2.6
   - スマホ向けレイアウト改修
 
 v1.1.7
-  - 初期バージョン
+  - 最初期バージョン
 
 詳細: https://yr-dullahan.hatenablog.com/
         </pre>
@@ -1306,7 +1311,7 @@ v1.1.7
 <style>
   /* ========== ライトモード ========== */
   #versionModal {
-    margin-top: 24px;
+    margin-top: 18px;
     border-top: 2px solid #7ab8ff;
     padding-top: 16px;
     padding-bottom: 80px;
