@@ -38,58 +38,17 @@
   // ─── CSV2テーブル（最適モンスター選定） ────────────────────────────────
   const CSV2_TABLE = (function () {
     const rows = [
-      ["genki","×","×","×","0","durahan"],
-      ["genki","×","×","×","1","durahan"],
-      ["genki","×","×","×","2","durahan"],
-      ["genki","×","×","○","0","rita_or_kuma"],
-      ["genki","×","×","○","1","rita_or_kuma"],
-      ["genki","×","×","○","2","rita_or_kuma"],
-      ["genki","×","○","×","0","rita_or_kuma"],
-      ["genki","×","○","×","1","durahan"],
-      ["genki","×","○","×","2","durahan"],
-      ["genki","×","○","○","0","rita_or_kuma"],
-      ["genki","×","○","○","1","rita_or_kuma"],
-      ["genki","×","○","○","2","rita_or_kuma"],
-      ["genki","○","×","×","0","durahan"],
-      ["genki","○","×","×","1","durahan"],
-      ["genki","○","×","×","2","durahan"],
-      ["genki","○","×","○","0","durahan"],
-      ["genki","○","×","○","1","durahan"],
-      ["genki","○","×","○","2","durahan"],
-      ["genki","○","○","×","0","durahan"],
-      ["genki","○","○","×","1","durahan"],
-      ["genki","○","○","×","2","durahan"],
-      ["genki","○","○","○","0","durahan"],
-      ["genki","○","○","○","1","durahan"],
-      ["genki","○","○","○","2","durahan"],
-      ["bakushin","×","×","×","0","durahan"],
-      ["bakushin","×","×","×","1","durahan"],
-      ["bakushin","×","×","×","2","durahan"],
-      ["bakushin","×","×","○","0","durahan"],
-      ["bakushin","×","×","○","1","durahan"],
-      ["bakushin","×","×","○","2","durahan"],
-      ["bakushin","×","○","×","0","durahan"],
-      ["bakushin","×","○","×","1","durahan"],
-      ["bakushin","×","○","×","2","durahan"],
-      ["bakushin","×","○","○","0","durahan"],
-      ["bakushin","×","○","○","1","durahan"],
-      ["bakushin","×","○","○","2","durahan"],
-      ["bakushin","○","×","×","0","durahan"],
-      ["bakushin","○","×","×","1","durahan"],
-      ["bakushin","○","×","×","2","durahan"],
-      ["bakushin","○","×","○","0","durahan"],
-      ["bakushin","○","×","○","1","durahan"],
-      ["bakushin","○","×","○","2","durahan"],
-      ["bakushin","○","○","×","0","durahan"],
-      ["bakushin","○","○","×","1","durahan"],
-      ["bakushin","○","○","×","2","durahan"],
-      ["bakushin","○","○","○","0","rita_or_kuma"],
-      ["bakushin","○","○","○","1","durahan"],
-      ["bakushin","○","○","○","2","durahan"],
+      // [food, tr, ag, em, elix, pb, result]
+      ["0","0","1","1","none","0","rita_or_kuma"],
+      ["1","0","1","1","none","0","rita_or_kuma"],
+      ["0","0","1","0","genki","0","rita_or_kuma"],
+      ["1","0","1","0","genki","0","rita_or_kuma"],
+      ["0","0","1","1","genki","0","rita_or_kuma"],
+      ["1","0","1","1","genki","0","rita_or_kuma"],
     ];
     const map = {};
-    rows.forEach(([elix, tr, ag, em, pb, result]) => {
-      map[`${elix}|${tr}|${ag}|${em}|${pb}`] = result;
+    rows.forEach(([food, tr, ag, em, elix, pb, result]) => {
+      map[`${food}|${tr}|${ag}|${em}|${elix}|${pb}`] = result;
     });
     return map;
   })();
