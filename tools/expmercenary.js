@@ -218,7 +218,7 @@
       const hasPassbook    = passbookLimit > 0;
       const isHighLimit    = elixir === "bakushin" || tr;
       const expLimit       = isHighLimit ? 1499999 : 599999;
-      const angelLimit     = 599999;
+      const angelLimit     = isHighLimit ? 1499999 : 599999;
 
       const rawCommon  = baseExp * rate + bonusExp;
       const rawAngel   = ag ? baseExp * 2 : 0;
@@ -1106,7 +1106,7 @@
               lapNotifyFired = false;
             }
           }
-        }, 16);   // ~60fps
+        }, 100);   // 10fps - タイマー表示の更新頻度削減
         $("btnTimerStop").innerHTML = "タイマー<br>作動中";
       };
 
@@ -1183,31 +1183,28 @@
           .forEach(el => { el.onchange = () => updateUI(true); });
       $("cn").onchange = () => updateUI(false);
 
-          // ── バージョン情報モーダル（常時表示、ツール下部） ─────────────────
+          // ── バージョン情報モーダル（ヘッダー常時表示、コンテンツ展開式） ─────
       (function addVersionModal() {
         if (document.getElementById('versionModal')) return;
 
         const modalHTML = `
-<div id="versionModal" style="margin-top: 24px; border-top: 2px solid #7ab8ff; padding-top: 16px;">
-  <div style="background:#fff; border-radius:12px; border:1px solid #ddd; overflow:hidden;">
-    <div class="modal-header" style="display:flex; justify-content:space-between; align-items:center; padding:12px 16px;">
-  <span style="font-weight:bold; font-size:16px;">⚔️ 傭兵用多機能ツール ver2.0.0</span>
-</div>
-    </div>
-    <div style="display:flex; border-bottom:1px solid #ddd;">
-      <button class="modal-tab" data-tab="terms" style="flex:1; padding:10px; background:#f0f0f0; border:none; cursor:pointer; font-weight:bold;">利用規約</button>
-      <button class="modal-tab" data-tab="data" style="flex:1; padding:10px; background:#f0f0f0; border:none; cursor:pointer; font-weight:bold;">参考データ</button>
-      <button class="modal-tab" data-tab="changelog" style="flex:1; padding:10px; background:#f0f0f0; border:none; cursor:pointer; font-weight:bold;">リリースログ</button>
-    </div>
-    <div style="flex:1; overflow-y:auto; padding:16px; max-height:400px;">
-      <div id="tab-terms" class="modal-tab-content" style="display:block;">
-        <p style="margin:0 0 12px 0;">本ツールは管理人が作成した検証データに基づいて制作されています。</p>
-        <p style="margin:0 0 12px 0;">本ツールは効率や計算結果を保証するためのものではありません。</p>
-        <p style="margin:0; font-weight:bold;">内部データの無断転用、および二次利用は固く禁止します。</p>
-      </div>
-      <div id="tab-data" class="modal-tab-content" style="display:none;">
-        <img src="./images/ref_data.png" alt="参考データ" style="max-width:100%; height:auto; border-radius:6px;">
-        <p style="margin:8px 0 0 0; font-size:12px; color:#666; text-align:center;">※ 経験値テーブル / 最適値データ</p>
+<div id="versionModal">
+  <!-- ヘッダー（タブボタン）：常時表示 -->
+  <div style="margin-top:24px; border-top:2px solid #7ab8ff; padding-top:12px; display:flex; gap:0; background:#f8f9fc; border-radius:6px; overflow:hidden;">
+    <button class="modal-tab" data-tab="terms" style="flex:1; padding:10px; background:#f0f0f0; border:none; cursor:pointer; font-weight:bold; color:#333; border-bottom:3px solid transparent; transition:all 0.2s;">利用規約</button>
+    <button class="modal-tab" data-tab="data" style="flex:1; padding:10px; background:#f0f0f0; border:none; cursor:pointer; font-weight:bold; color:#333; border-bottom:3px solid transparent; transition:all 0.2s;">参考データ</button>
+    <button class="modal-tab" data-tab="changelog" style="flex:1; padding:10px; background:#f0f0f0; border:none; cursor:pointer; font-weight:bold; color:#333; border-bottom:3px solid transparent; transition:all 0.2s;">リリースログ</button>
+  </div>
+  
+  <!-- コンテンツ：展開式 -->
+  <div id="tab-terms" class="modal-tab-content" style="display:none; background:#fff; border:1px solid #ddd; border-top:none; border-radius:0 0 6px 6px; padding:16px; overflow-y:auto; max-height:400px;">
+    <p style="margin:0 0 12px 0;">本ツールは管理人が作成した検証データに基づいて制作されています。</p>
+    <p style="margin:0 0 12px 0;">本ツールは効率や計算結果を保証するためのものではありません。</p>
+    <p style="margin:0; font-weight:bold;">内部データの無断転用、および二次利用は固く禁止します。</p>
+  </div>
+  <div id="tab-data" class="modal-tab-content" style="display:none; background:#fff; border:1px solid #ddd; border-top:none; border-radius:0 0 6px 6px; padding:16px; overflow-y:auto; max-height:400px;">
+    <img src="./images/ref_data.png" alt="参考データ" style="max-width:100%; height:auto; border-radius:6px;">
+    <p style="margin:8px 0 0 0; font-size:12px; color:#666; text-align:center;">※ 経験値テーブル / 最適値データ</p>
       </div>
       <div id="tab-changelog" class="modal-tab-content" style="display:none;">
         <pre style="margin:0; font-size:12px; white-space:pre-wrap; font-family:monospace;">
@@ -1270,10 +1267,15 @@ v1.1.7
 <style>
   /* ========== ライトモード ========== */
   #versionModal {
-    margin-top: 2px;
-    border-top: 2px solid #7ab8ff;
-    padding-top: 16px;
-    padding-bottom: 80px;
+    margin: 0;
+    padding: 0;
+  }
+  #versionModal .modal-tab {
+    border: none;
+  }
+  #versionModal .modal-tab.active {
+    border-bottom-color: #0066cc;
+    color: #0066cc;
   }
   #versionModal > div {
     background: #ffffff;
@@ -1361,17 +1363,42 @@ v1.1.7
           container.insertAdjacentHTML('afterend', modalHTML);
         }
 
-        // タブ切り替えイベント
+        // アコーディオン式のタブ展開/折り畳み
         const tabs = document.querySelectorAll('.modal-tab');
         const contents = document.querySelectorAll('.modal-tab-content');
+        let activeTab = null;
+        
         const openTab = (tabId) => {
+          // 同じタブをクリックしたら閉じる
+          if (activeTab === tabId) {
+            contents.forEach(c => c.style.display = 'none');
+            tabs.forEach(t => {
+              t.style.borderBottomColor = 'transparent';
+              t.style.color = '#333';
+            });
+            activeTab = null;
+            return;
+          }
+          
+          // 別のタブをクリックしたら切り替え
           contents.forEach(c => c.style.display = 'none');
+          tabs.forEach(t => {
+            t.style.borderBottomColor = 'transparent';
+            t.style.color = '#333';
+          });
+          
           const target = document.getElementById(`tab-${tabId}`);
           if (target) target.style.display = 'block';
-          tabs.forEach(t => t.classList.remove('active'));
-          const activeTab = document.querySelector(`.modal-tab[data-tab="${tabId}"]`);
-          if (activeTab) activeTab.classList.add('active');
+          
+          const activeTabEl = document.querySelector(`.modal-tab[data-tab="${tabId}"]`);
+          if (activeTabEl) {
+            activeTabEl.style.borderBottomColor = '#0066cc';
+            activeTabEl.style.color = '#0066cc';
+          }
+          
+          activeTab = tabId;
         };
+        
         tabs.forEach(tab => {
           tab.onclick = () => openTab(tab.dataset.tab);
         });
