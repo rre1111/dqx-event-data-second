@@ -1106,7 +1106,7 @@
               lapNotifyFired = false;
             }
           }
-        }, 100);   // 10fps - タイマー表示の更新頻度削減
+        }, 42);   // タイマー表示の更新頻度調整
         $("btnTimerStop").innerHTML = "タイマー<br>作動中";
       };
 
