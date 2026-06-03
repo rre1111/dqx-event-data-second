@@ -354,9 +354,14 @@ body.dark-mode .tool-menu-bottom {
 
 /* ----- レスポンシブ調整（スマホ:3列＋折り返し許可＋説明文表示） ----- */
 @media (max-width: 768px) {
-    #dqx-tool-container {
-        margin-top: -2px !important;  /* 2mm相当上に詰める */
+    body {
+        padding-top: 0 !important;
     }
+    
+    #dqx-tool-container {
+        margin-top: -2px !important;
+    }
+    
     .home-grid {
         grid-template-columns: repeat(3, minmax(0, 1fr));
         gap: 10px;
