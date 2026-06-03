@@ -1190,7 +1190,7 @@
         const modalHTML = `
 <div id="versionModal">
   <!-- ヘッダー（タブボタン）：常時表示 -->
-  <div style="margin-top:24px; border-top:2px solid #7ab8ff; padding-top:12px; display:flex; gap:0; background:#f8f9fc; border-radius:6px; overflow:hidden;">
+  <div style="margin-top:12px; border-top:2px solid #7ab8ff; padding-top:6px; display:flex; gap:0; background:#f8f9fc; border-radius:6px; overflow:hidden;">
     <button class="modal-tab" data-tab="terms" style="flex:1; padding:10px; background:#f0f0f0; border:none; cursor:pointer; font-weight:bold; color:#333; border-bottom:3px solid transparent; transition:all 0.2s;">利用規約</button>
     <button class="modal-tab" data-tab="data" style="flex:1; padding:10px; background:#f0f0f0; border:none; cursor:pointer; font-weight:bold; color:#333; border-bottom:3px solid transparent; transition:all 0.2s;">参考データ</button>
     <button class="modal-tab" data-tab="changelog" style="flex:1; padding:10px; background:#f0f0f0; border:none; cursor:pointer; font-weight:bold; color:#333; border-bottom:3px solid transparent; transition:all 0.2s;">リリースログ</button>
