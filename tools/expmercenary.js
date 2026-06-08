@@ -1318,7 +1318,7 @@ v1.1.7
   /* ========== ライトモード ========== */
   #versionModal {
     margin: 0;
-    padding: 0;
+    padding: 0 0 80px 0;
   }
   #versionModal .modal-tab {
     border: none;
