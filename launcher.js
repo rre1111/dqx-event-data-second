@@ -83,8 +83,8 @@ const DQXTools = {
             'dqx_disabled_final10',
             'dqx_hidden_tasks_v1',
             'dqx_limited_checks_v3',
-            'dqx_lap_notify'
-            'dqx_shopping_cart'
+            'dqx_lap_notify',
+            'dqx_shopping_cart',
             'dqx_material_prices'
         ];
 
