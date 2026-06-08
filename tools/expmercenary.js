@@ -5,12 +5,12 @@
 // [BUG] passbookOffset: 浮動小数の端数を Math.ceil で統一
 // [SEC] innerHTML を createElement+textContent に置き換え（XSS対策）
 // [PERF] querySelectorAll を addRow 時のキャッシュ配列管理に変更
-// [PERF] setInterval を 16ms（~60fps）に変更
+// [PERF] setInterval を 42ms（~24fps）に変更（表示更新負荷削減）
 // [PERF] getPartnerOptions を DocumentFragment+cloneNode で効率化
 // [UX] btnTimerStop のラベルを状態に応じて「開始」「再開」に切り替え
 // [QUAL] ExpCalc をファクトリ関数化（複数インスタンス対応）
 // [QUAL] CSV1/CSV2 のキー型を統一（すべて文字列）
-// [QUAL] ritaOrKuma を AC リセット対象に追加（設計確認済み→リセット対象外）
+// [QUAL] ritaOrKuma は AC リセット対象外（転職先選好はセッション継続が自然なため）
 // [QUAL] calcLockedUntil の 100ms 制限を廃止（タイマー開始と加算は独立）
 
 (function (global) {
@@ -435,10 +435,12 @@
       delBtn.onclick = () => {
         const bid  = row.dataset.bid;
         const type = row.dataset.type;
-        // angel 以外を消す場合は対応 angel 行も削除
-        if (type !== "angel") {
+        // pass行を消す場合は同一bidのangel/overflow行も一括削除
+        // angel/overflow行は個別削除（pass行には触れない）
+        if (type === "pass") {
           rowCache
-            .filter(r => r !== row && r.dataset.bid === bid && r.dataset.type === "angel")
+            .filter(r => r !== row && r.dataset.bid === bid &&
+                    (r.dataset.type === "angel" || r.dataset.type === "overflow"))
             .forEach(r => { r.remove(); rowCache.splice(rowCache.indexOf(r), 1); });
         }
         row.remove();
@@ -562,13 +564,13 @@
     // ── ラップ再計算 ─────────────────────────────────────────────────────
     function recalcLaps() {
       let prevSec = 0;
-      rowCache.forEach(r => {
+      for (let i = 0; i < rowCache.length; i++) {
+        const r = rowCache[i];
         const sec = parseFloat(r.dataset.sec);
-        if (isNaN(sec)) return;
+        if (isNaN(sec)) continue;
         const lap = sec - prevSec;
         r.dataset.lap = lap;
-        const lapEl = r.querySelector(".time-lap");
-        // 既存のラップ表示を更新、なければ追加
+        const lapEl   = r.querySelector(".time-lap");
         const timeCell = r.querySelector(".time-cell");
         if (timeCell) {
           if (lapEl) {
@@ -580,8 +582,19 @@
             timeCell.appendChild(newLap);
           }
         }
-        prevSec = sec;
-      });
+        // 同一bidの通常行が続く場合、最終行だけprevSecを更新する
+        // lap_only/jobは固定bid("LAP"/"JOB")のため同一bid判定から除外
+        const type = r.dataset.type;
+        const currentBid = r.dataset.bid;
+        const next = rowCache[i + 1];
+        const nextBid = next?.dataset.bid;
+        const nextType = next?.dataset.type;
+        const isGroupable = type !== "lap_only" && type !== "job";
+        const nextGroupable = nextType !== "lap_only" && nextType !== "job";
+        if (!isGroupable || !nextGroupable || currentBid !== nextBid) {
+          prevSec = sec;
+        }
+      }
 
       // lastLapSec = キャッシュ末尾（最新行）の sec
       if (rowCache.length > 0) {
@@ -967,9 +980,6 @@
         const passbookLimit = parseInt($("pb").value) || 0;
 
         if (passbookLimit > 0) {
-          if (expResult.angel > 0) {
-            addRow(killCount, callCount, expResult.angel, "angel", elapsed, lap, false, expResult.angel, null, false);
-          }
           let accumulatedRaw = 0;
           rowCache.filter(r => r.dataset.type === "pass").forEach(r => {
             accumulatedRaw += parseFloat(r.dataset.rawValCapped) || 0;
@@ -979,10 +989,13 @@
           if (remaining >= expResult.common) {
             addRow(killCount, callCount, expResult.common, "pass", elapsed, lap, true, expResult.common, null, false);
           } else if (remaining > 0) {
-            addRow(killCount, callCount, expResult.common - remaining, "overflow", elapsed, lap, false, expResult.common - remaining, null, false);
             addRow(killCount, callCount, remaining, "pass", elapsed, lap, true, remaining, null, false);
+            addRow(killCount, callCount, expResult.common - remaining, "overflow", elapsed, lap, false, expResult.common - remaining, null, false);
           } else {
             addRow(killCount, callCount, expResult.common, "overflow", elapsed, lap, true, expResult.common, null, false);
+          }
+          if (expResult.angel > 0) {
+            addRow(killCount, callCount, expResult.angel, "angel", elapsed, lap, false, expResult.angel, null, false);
           }
         } else {
           addRow(killCount, callCount, expResult.total, "normal", elapsed, lap, true, expResult.total, null, false);
@@ -1106,7 +1119,7 @@
               lapNotifyFired = false;
             }
           }
-        }, 42);   // タイマー表示の更新頻度調整
+        }, 42);    // ~24fps
         $("btnTimerStop").innerHTML = "タイマー<br>作動中";
       };
 
@@ -1115,6 +1128,7 @@
         clearInterval(timerHandle);
         timerHandle = null;
         pauseSec    = (Date.now() - startTime) / 1000;
+        lapNotifyFired = false;   // 停止時に警告状態をリセット
         updateTimerDisplay(pauseSec);
         $("btnTimerStop").innerHTML = "タイマー<br>再開";
       };
@@ -1133,7 +1147,7 @@
           lines.push(``);
           lines.push(`#/戦闘時間/獲得exp/呼び数/お供/種類`);
 
-          // キャッシュを逆順（新→古）で出力（表示順と同じ）
+          // rowCacheは古→新順のため、逆順にして画面表示（新→古）と合わせて出力
           [...rowCache].reverse().forEach(el => {
             const rowType = el.dataset.type || "";
             const rowId   = el.dataset.bid  || "-";
@@ -1179,9 +1193,45 @@
         updateUI(true);
       };
 
-      root.querySelectorAll('input[name="e_exp"], #fd, #tr, #ag, #em, #ms, #pb')
+      root.querySelectorAll('input[name="e_exp"], #fd, #tr, #ag, #em, #ms')
           .forEach(el => { el.onchange = () => updateUI(true); });
       $("cn").onchange = () => updateUI(false);
+
+      // 通帳切り替え時：新上限を超えた pass 行を新しい順から切り捨て
+      $("pb").onchange = () => {
+        const newLimit = parseInt($("pb").value) || 0;
+        if (newLimit > 0) {
+          // pass行を古い順に取得し、後ろ（新しい方）から削る
+          const passRows = rowCache.filter(r => r.dataset.type === "pass");
+          let total = passRows.reduce((s, r) => s + (parseFloat(r.dataset.rawValCapped) || 0), 0);
+          // 新しい順（末尾から）に超過分を削る
+          for (let i = passRows.length - 1; i >= 0 && total > newLimit; i--) {
+            const r = passRows[i];
+            const raw = parseFloat(r.dataset.rawValCapped) || 0;
+            const over = total - newLimit;
+            if (raw <= over) {
+              // この行ごと 0 にクランプ（実質無効化）
+              const newVal = 0;
+              r.dataset.val          = newVal;
+              r.dataset.rawValCapped = newVal;
+              const el = r.querySelector(".exp-value");
+              if (el) el.textContent = newVal.toLocaleString();
+              total -= raw;
+            } else {
+              // 一部カット
+              const newVal = Math.ceil(raw - over);
+              r.dataset.val          = newVal;
+              r.dataset.rawValCapped = newVal;
+              const el = r.querySelector(".exp-value");
+              if (el) el.textContent = newVal.toLocaleString();
+              total = newLimit;
+            }
+          }
+          // passbookOffset も新上限に収める
+          if (passbookOffset > newLimit) passbookOffset = newLimit;
+        }
+        updateUI(true);
+      };
 
           // ── バージョン情報モーダル（ヘッダー常時表示、コンテンツ展開式） ─────
       (function addVersionModal() {
@@ -1190,7 +1240,7 @@
         const modalHTML = `
 <div id="versionModal">
   <!-- ヘッダー（タブボタン）：常時表示 -->
-  <div style="margin-top:12px; border-top:2px solid #7ab8ff; padding-top:6px; display:flex; gap:0; background:#f8f9fc; border-radius:6px; overflow:hidden;">
+  <div style="margin-top:24px; border-top:2px solid #7ab8ff; padding-top:12px; display:flex; gap:0; background:#f8f9fc; border-radius:6px; overflow:hidden;">
     <button class="modal-tab" data-tab="terms" style="flex:1; padding:10px; background:#f0f0f0; border:none; cursor:pointer; font-weight:bold; color:#333; border-bottom:3px solid transparent; transition:all 0.2s;">利用規約</button>
     <button class="modal-tab" data-tab="data" style="flex:1; padding:10px; background:#f0f0f0; border:none; cursor:pointer; font-weight:bold; color:#333; border-bottom:3px solid transparent; transition:all 0.2s;">参考データ</button>
     <button class="modal-tab" data-tab="changelog" style="flex:1; padding:10px; background:#f0f0f0; border:none; cursor:pointer; font-weight:bold; color:#333; border-bottom:3px solid transparent; transition:all 0.2s;">リリースログ</button>
@@ -1216,7 +1266,7 @@ v2.0.0
   - LAP音声通知機能追加
   - デスペナルティ想定機能調整
   - セキュリティ強化（XSS対策）
-  - パフォーマンス 6/3現在調整中
+  - パフォーマンス改善（60fps）
   - 転職ボタン連打防止
   - 行削除時のAngel連動削除
   - データテーブル実装に伴い「最適+1」ボタン廃止
@@ -1268,7 +1318,7 @@ v1.1.7
   /* ========== ライトモード ========== */
   #versionModal {
     margin: 0;
-    padding: 0 0 80px 0;
+    padding: 0;
   }
   #versionModal .modal-tab {
     border: none;
