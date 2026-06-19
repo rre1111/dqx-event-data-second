@@ -1138,7 +1138,7 @@ ${getStyles()}
 <div id="versionModal">
   <div class="modal-tabs">
     <button class="modal-tab" data-tab="terms">利用規約</button>
-    <button class="modal-tab" data-tab="data">参考データ</button>
+    <button class="modal-tab" data-tab="data">データテーブル</button>
     <button class="modal-tab" data-tab="changelog">リリースログ</button>
   </div>
   <div id="tab-terms" class="modal-tab-content">
@@ -1147,9 +1147,17 @@ ${getStyles()}
     <p class="modal-note-bold">内部データの無断転用、および二次利用は固く禁止します。</p>
   </div>
   <div id="tab-data" class="modal-tab-content">
-    <img src="./images/ref_data.png" alt="参考データ" class="modal-image">
-    <p class="modal-caption">※ 経験値テーブル / 最適値データ</p>
-  </div>
+    <div class="ref-table-grid">
+        <div class="ref-table-card">
+            <div class="ref-table-title">📋 最適モンスター (CSV2)</div>
+            <img src="./images/ref_data_csv2.png" alt="最適モンスターテーブル" class="ref-table-img">
+        </div>
+        <div class="ref-table-card">
+            <div class="ref-table-title">📊 最適呼び数 (CSV1)</div>
+            <img src="./images/ref_data_csv1.png" alt="最適呼び数テーブル" class="ref-table-img">
+        </div>
+    </div>
+</div>
   <div id="tab-changelog" class="modal-tab-content">
     <pre class="modal-changelog">
 v2.1.0 ...最終更新日 2026/06/19
