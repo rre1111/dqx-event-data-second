@@ -1,6 +1,6 @@
 // ==========ツールランチャー（改造版）=========
 // ========== バージョン管理 ==========
-const APP_VERSION = '3.2.2β';
+const APP_VERSION = '3.2.3β';
 
 // バージョン情報をグローバルに公開（HTML側と整合性チェック用）
 window.LAUNCHER_VERSION = APP_VERSION;
@@ -24,6 +24,7 @@ const DQXTools = {
     darkMode: false,
     boundResizeHandler: null,
     sortableInstance: null,  // SortableJSインスタンスを保存
+    sidebarVisible: true,    // PCサイドバーの表示状態
 
     register: function(toolId, toolConfig) {
         this.tools[toolId] = toolConfig;
@@ -33,6 +34,11 @@ const DQXTools = {
         return window.innerWidth <= 768;
     },
 
+    isTabletLandscape: function() {
+        // タブレット横向き（768px超, かつ 縦横比が横長）
+        return window.innerWidth > 768 && window.innerWidth < 1024 && window.innerHeight < window.innerWidth;
+    },
+
     init: function(containerId) {
         checkVersionUpdate();
         this.container = document.getElementById(containerId);
@@ -40,6 +46,9 @@ const DQXTools = {
             console.error('コンテナが見つかりません:', containerId);
             return;
         }
+
+        // サイドバーの表示状態を復元
+        this.sidebarVisible = localStorage.getItem('dqx_sidebar_visible') !== 'false';
 
         // ========== Pull to Refresh（スワイプ引っ張り再読み込み）禁止 ==========
         let touchStartY = 0;
@@ -85,7 +94,8 @@ const DQXTools = {
             'dqx_limited_checks_v3',
             'dqx_lap_notify',
             'dqx_shopping_cart',
-            'dqx_material_prices'
+            'dqx_material_prices',
+            'dqx_sidebar_visible'
         ];
 
         // ========== localStorageのクリーンアップ ==========
@@ -139,6 +149,12 @@ const DQXTools = {
         } else {
             this.renderToolMenu();
         }
+    },
+
+    toggleSidebar: function() {
+        this.sidebarVisible = !this.sidebarVisible;
+        localStorage.setItem('dqx_sidebar_visible', String(this.sidebarVisible));
+        this.renderToolMenu();
     },
 
     showLauncher: function() {
@@ -290,13 +306,17 @@ const DQXTools = {
                 };
             });
         } else {
-            // PC：右サイドバー（縦スクロール＋固定ボタン）
+            // PC／タブレット横向き：右サイドバー（縦スクロール＋固定ボタン）
+            const isHidden = !this.sidebarVisible;
             menuBar.className = 'tool-menu-sidebar';
+            menuBar.style.display = isHidden ? 'none' : '';
+            
             menuBar.innerHTML = `
                 <div class="tool-menu-sidebar-scroll">
                     ${menuButtons}
                 </div>
                 <div class="tool-menu-sidebar-fixed">
+                    <button class="tool-menu-btn sidebar-toggle-btn" data-action="toggle-sidebar">◀<span class="menu-btn-label">格納</span></button>
                     <button class="tool-menu-btn home-btn" data-action="home">🏠<span class="menu-btn-label">ホーム</span></button>
                     <button class="tool-menu-btn dark-mode-btn" data-action="dark">${this.darkMode ? '☀️' : '🌙'}<span class="menu-btn-label">${this.darkMode ? 'ライト' : 'ダーク'}</span></button>
                 </div>
@@ -305,6 +325,9 @@ const DQXTools = {
             document.body.appendChild(menuBar);
             
             // イベント設定
+            const toggleBtn = menuBar.querySelector('[data-action="toggle-sidebar"]');
+            if (toggleBtn) toggleBtn.onclick = () => this.toggleSidebar();
+            
             const homeBtn = menuBar.querySelector('[data-action="home"]');
             if (homeBtn) homeBtn.onclick = () => this.goHome();
             
@@ -319,19 +342,60 @@ const DQXTools = {
                     }
                 };
             });
+
+            // 格納状態を適用（ツールコンテナのパディング調整）
+            this.applySidebarState();
         }
         
         document.body.appendChild(menuBar);
+        this.updateContainerPadding();
+    },
 
+    applySidebarState: function() {
+        // サイドバー格納時のツールコンテナパディング調整
         const toolContainer = document.getElementById('dqx-tool-container');
-        if (toolContainer) {
-            if (isMobile) {
-                toolContainer.style.paddingBottom = '70px';
+        const menuBar = document.getElementById('tool-menu-bar');
+        if (toolContainer && menuBar) {
+            const isHidden = !this.sidebarVisible;
+            if (isHidden) {
                 toolContainer.style.paddingRight = '0';
+                // 格納中はハンバーガー的な表示として、復元ボタンをフロート表示
+                let floatBtn = document.getElementById('sidebar-float-toggle');
+                if (!floatBtn) {
+                    floatBtn = document.createElement('button');
+                    floatBtn.id = 'sidebar-float-toggle';
+                    floatBtn.className = 'sidebar-float-btn';
+                    floatBtn.textContent = '▶';
+                    floatBtn.title = 'ツールバーを表示';
+                    document.body.appendChild(floatBtn);
+                    floatBtn.onclick = () => this.toggleSidebar();
+                }
+                floatBtn.style.display = 'flex';
             } else {
-                toolContainer.style.paddingBottom = '0';
                 toolContainer.style.paddingRight = '80px';
+                const floatBtn = document.getElementById('sidebar-float-toggle');
+                if (floatBtn) floatBtn.style.display = 'none';
+                // ツールバー表示時に格納ボタンのアイコンを更新
+                const toggleBtn = menuBar.querySelector('[data-action="toggle-sidebar"]');
+                if (toggleBtn) {
+                    toggleBtn.innerHTML = '◀<span class="menu-btn-label">格納</span>';
+                }
             }
+        }
+    },
+
+    updateContainerPadding: function() {
+        const isMobile = this.isMobile();
+        const toolContainer = document.getElementById('dqx-tool-container');
+        if (!toolContainer) return;
+
+        if (isMobile) {
+            toolContainer.style.paddingBottom = '70px';
+            toolContainer.style.paddingRight = '0';
+        } else {
+            const isHidden = !this.sidebarVisible;
+            toolContainer.style.paddingBottom = '0';
+            toolContainer.style.paddingRight = isHidden ? '0' : '80px';
         }
     },
 
@@ -368,6 +432,7 @@ const DQXTools = {
             const code = await res.text();
             
             const script = document.createElement('script');
+            script.dataset.testTool = config.filename;
             script.textContent = code;
             document.head.appendChild(script);
             
@@ -462,9 +527,7 @@ const DQXTools = {
         await new Promise(resolve => setTimeout(resolve, 1000));
 
         try {
-            const oldScript = document.querySelector(`script[src*="${tool.url.split('/').pop()}"]`);
-            if (oldScript) oldScript.remove();
-
+            this.removeOldToolScripts(tool.url);
             await this.loadScript(tool.url);
 
             const fn = tool.renderFn
@@ -502,6 +565,9 @@ const DQXTools = {
         const menuBar = document.getElementById('tool-menu-bar');
         if (menuBar) menuBar.remove();
 
+        const floatBtn = document.getElementById('sidebar-float-toggle');
+        if (floatBtn) floatBtn.remove();
+
         const oldContainer = document.getElementById('dqx-tool-container');
         if (oldContainer) oldContainer.remove();
 
@@ -509,8 +575,7 @@ const DQXTools = {
         newContainer.id = 'dqx-tool-container';
         this.container.appendChild(newContainer);
 
-        const scripts = document.querySelectorAll('script[src*="testtool"]');
-        scripts.forEach(script => script.remove());
+        this.removeTestToolScripts();
 
         this.currentTool = null;
         this.showLauncher();
@@ -520,13 +585,22 @@ const DQXTools = {
         if (this.currentTool) {
             const tool = this.tools[this.currentTool];
             if (tool) {
-                const globalName = tool.renderFn.split('.')[0];
-                if (window[globalName] && typeof window[globalName].destroy === 'function') {
-                    window[globalName].destroy();
+                if (tool.testToolConfig) {
+                    const testGlobalName = tool.testToolConfig.globalName;
+                    if (window[testGlobalName] && typeof window[testGlobalName].destroy === 'function') {
+                        window[testGlobalName].destroy();
+                    }
+                } else if (tool.renderFn) {
+                    const globalName = tool.renderFn.split('.')[0];
+                    if (window[globalName] && typeof window[globalName].destroy === 'function') {
+                        window[globalName].destroy();
+                    }
                 }
             }
         }
-        
+
+        this.removeTestToolScripts();
+
         const possibleGlobalNames = ['DQtool', 'DQtool2', 'DQtool3', 'Tool4'];
         possibleGlobalNames.forEach(globalName => {
             if (window[globalName] && typeof window[globalName].destroy === 'function') {
@@ -544,6 +618,20 @@ const DQXTools = {
             window.removeEventListener('resize', this.boundResizeHandler);
             this.boundResizeHandler = null;
         }
+        const floatBtn = document.getElementById('sidebar-float-toggle');
+        if (floatBtn) floatBtn.remove();
+    },
+
+    removeOldToolScripts: function(url) {
+        const cacheBustUrl = url + '?v=' + APP_VERSION;
+        const rawUrl = url;
+
+        document.querySelectorAll(`script[src="${cacheBustUrl}"]`).forEach(script => script.remove());
+        document.querySelectorAll(`script[src="${rawUrl}"]`).forEach(script => script.remove());
+    },
+
+    removeTestToolScripts: function() {
+        document.querySelectorAll('script[data-test-tool]').forEach(script => script.remove());
     },
 
     loadScript: function(url) {
