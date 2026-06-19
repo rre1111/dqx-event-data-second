@@ -344,6 +344,14 @@ html, body {
     transform: translateY(-50%) scale(1.05);
 }
 
+/* 格納状態を強制的に復元するためのユーティリティクラス */
+body.sidebar-hidden .tool-menu-sidebar {
+    display: none !important;
+}
+body.sidebar-hidden .sidebar-float-btn {
+    display: flex !important;
+}
+
 /* ----- ダークモード対応 ----- */
 body.dark-mode .home-title {
     background: linear-gradient(135deg, #60a5fa, #38bdf8);
