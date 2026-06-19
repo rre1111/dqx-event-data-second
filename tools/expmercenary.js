@@ -1149,11 +1149,11 @@ ${getStyles()}
   <div id="tab-data" class="modal-tab-content">
     <div class="ref-table-grid">
         <div class="ref-table-card">
-            <div class="ref-table-title">📋 最適モンスター (CSV2)</div>
+            <div class="ref-table-title">📋 (CSV2)</div>
             <img src="./images/ref_data_csv2.png" alt="最適モンスターテーブル" class="ref-table-img">
         </div>
         <div class="ref-table-card">
-            <div class="ref-table-title">📊 最適呼び数 (CSV1)</div>
+            <div class="ref-table-title">📊 (CSV1)</div>
             <img src="./images/ref_data_csv1.png" alt="最適呼び数テーブル" class="ref-table-img">
         </div>
     </div>
