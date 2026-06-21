@@ -1,14 +1,22 @@
-// ========== 傭兵用多機能ツール ver2.1.1 (merged) ==========
-// ベース: ver2.1.0
-// [MOD] 1行目の縦幅を5%増加
-// [MOD] リタ/クマを横並びに変更（縦幅をプルダウンと揃える）
-// [MOD] 討伐数に◀︎▶︎ボタンを追加（縦幅をプルダウンと揃える）
-// [MOD] 通帳行の左にOCボタンを移動
-
-// 変更履歴（ver2.1.0時点）:
+// ========== 傭兵用多機能ツール ver2.1.0 (merged) ==========
+// ベース: ver2.0.0 統合
 // [CSS]    インラインstyleを全廃し、クラスベース設計思想で再定義
 // [AUDIO]  playLapWarning移植（AudioContext管理・resume対応・音色変更）
 // [QUAL]   基本的な動作ロジックは2.0.0から変更なし
+
+// 変更履歴（ver2.0.0時点）:
+// [BUG] _recalcLaps: 削除後の lastLapSec 更新を正確化
+// [BUG] jobOffsetSec: 転職ボタン連打防止(1秒クールダウン)
+// [BUG] passbookOffset: 浮動小数の端数を Math.ceil で統一
+// [SEC] innerHTML を createElement+textContent に置き換え(XSS対策)
+// [PERF] querySelectorAll を addRow 時のキャッシュ配列管理に変更
+// [PERF] setInterval を 42ms（~24fps）に変更(表示更新負荷削減)
+// [PERF] getPartnerOptions を DocumentFragment+cloneNode で効率化
+// [UX] btnTimerStop のラベルを状態に応じて「開始」「再開」に切り替え
+// [QUAL] ExpCalc をファクトリ関数化（複数インスタンス対応）
+// [QUAL] CSV1/CSV2 のキー型を統一(すべて文字列)
+// [QUAL] ritaOrKuma は AC リセット対象外(転職先選好はセッション継続が自然なため)
+// [QUAL] calcLockedUntil の 100ms 制限を廃止(タイマー開始と加算は独立)
 
 (function (global) {
   "use strict";
@@ -724,7 +732,7 @@
       const savedNotify = localStorage.getItem("dqx_lap_notify");
       if (savedNotify !== null) lapNotifyEnabled = savedNotify === "true";
 
-      // ─── HTML テンプレート ──
+      // ─── HTML テンプレート（1つ目の構造・並び順を維持、クラスベースに変換） ──
       container.innerHTML = `
 <style>
 ${getStyles()}
@@ -758,16 +766,12 @@ ${getStyles()}
     </div>
     <div class="call-count-col">
       <div class="call-count-label">討伐数</div>
-      <div class="call-count-control">
-        <button id="btnCallDec" class="call-arrow">◀</button>
-        <select id="cn" class="call-count-select">
-          <option value="1">A</option><option value="2">B</option><option value="3">C</option>
-          <option value="4">D</option><option value="5">E</option><option value="6">F</option>
-          <option value="7">G</option><option value="8">H</option><option value="9">I</option>
-          <option value="10">J</option><option value="11" selected>K</option><option value="12">L</option>
-        </select>
-        <button id="btnCallInc" class="call-arrow">▶</button>
-      </div>
+      <select id="cn" class="call-count-select">
+        <option value="1">A</option><option value="2">B</option><option value="3">C</option>
+        <option value="4">D</option><option value="5">E</option><option value="6">F</option>
+        <option value="7">G</option><option value="8">H</option><option value="9">I</option>
+        <option value="10">J</option><option value="11" selected>K</option><option value="12">L</option>
+      </select>
     </div>
   </div>
 
@@ -782,6 +786,7 @@ ${getStyles()}
         </div>
       </div>
       <div class="buff-row-2">
+        <button id="btnBuffReset" class="btn-oc">OC</button>
         <label><input id="fd" type="checkbox" checked />料理</label>
         <label><input id="tr" type="checkbox" />修練</label>
         <label><input id="ag" type="checkbox" />エンゼル</label>
@@ -828,21 +833,20 @@ ${getStyles()}
     </div>
   </div>
 
+  <div class="row-copy-reward">
+    <button id="btnCopyHistory" class="btn-copy">履歴コピー</button>
+    <div id="estimatedReward" class="reward-card">
+      想定玉給:<span id="estimatedGoldDisplay" class="text-green estimated-gold-value">--</span>
+    </div>
+  </div>
+
   <div id="passbookArea" class="passbook-area hidden">
     <div class="passbook-info">
-      <button id="btnBuffReset" class="btn-oc-passbook">OC</button>
       通帳:<strong id="passbookExpDisplay" class="text-red passbook-exp-value">0</strong>/<span id="passbookLimitText" class="passbook-limit-value">0</span>
     </div>
     <div class="passbook-buttons">
       <button id="btnPassbookReset">リセット</button>
       <button id="btnPassbookWithdraw">1Lv分引出</button>
-    </div>
-  </div>
-
-  <div class="row-copy-reward">
-    <button id="btnCopyHistory" class="btn-copy">履歴コピー</button>
-    <div id="estimatedReward" class="reward-card">
-      想定玉給:<span id="estimatedGoldDisplay" class="text-green estimated-gold-value">--</span>
     </div>
   </div>
 
@@ -1033,18 +1037,6 @@ ${getStyles()}
         $("btnTimerStop").innerHTML = "タイマー<br>再開";
       };
 
-      // ── 討伐数増減ボタン ──────────────────────────────────────────────
-      $("btnCallDec").onclick = () => {
-        const sel = $("cn");
-        const idx = sel.selectedIndex;
-        if (idx > 0) { sel.selectedIndex = idx - 1; updateUI(false); }
-      };
-      $("btnCallInc").onclick = () => {
-        const sel = $("cn");
-        const idx = sel.selectedIndex;
-        if (idx < sel.options.length - 1) { sel.selectedIndex = idx + 1; updateUI(false); }
-      };
-
       $("btnCopyHistory").onclick = () => {
         try {
           const lines = [];
@@ -1172,12 +1164,6 @@ ${getStyles()}
 </div>
   <div id="tab-changelog" class="modal-tab-content">
     <pre class="modal-changelog">
-v2.1.1 ...最終更新日 2026/06/20
-  - 1行目の縦幅を5%増加
-  - リタ/クマを横並びに変更
-  - 討伐数に◀︎▶︎ボタンを追加
-  - 通帳行の左にOCボタンを移動
-
 v2.1.0 ...最終更新日 2026/06/19
   - LAP音声通知をresume対応版に更新
   - クラスベースCSSへ全面移行
@@ -1306,15 +1292,15 @@ v1.1.7
   .invisible{visibility:hidden}
 
   /* ── 上段: LAP通知/モンスター/リタ/クマ/最適モンスター ───────────── */
-  .row-top{display:flex;gap:4px;margin-bottom:6px;align-items:center;min-height:44px}
-  .notify-toggle{display:flex;align-items:center;gap:4px;background:#f0f7ff;padding:4px 8px;border-radius:20px;font-size:11px;border:1px solid #7ab8ff;flex-shrink:0;height:36px}
+  .row-top{display:flex;gap:4px;margin-bottom:6px;align-items:center}
+  .notify-toggle{display:flex;align-items:center;gap:4px;background:#f0f7ff;padding:2px 8px;border-radius:20px;font-size:11px;border:1px solid #7ab8ff;flex-shrink:0}
   .notify-toggle input{width:16px;height:16px;margin:0;cursor:pointer}
   .notify-toggle label{cursor:pointer;font-size:11px;margin:0}
-  .monster-select{flex:1.5;padding:6px;font-size:15px;border:1px solid #7ab8ff;border-radius:4px;font-weight:bold;text-align:center;background-color:#fff;color:#333;height:36px}
-  .rita-kuma-col{display:flex;gap:3px;flex-shrink:0;height:36px;align-items:center}
-  .btn-rita-kuma{font-size:11px;padding:4px 8px;border-radius:4px;border:1px solid #bbb;cursor:pointer;font-weight:bold;transition:background 0.15s,color 0.15s,border-color 0.15s;background:#f5f5f5;color:#888;white-space:nowrap;height:30px;display:flex;align-items:center}
+  .monster-select{flex:1.5;padding:6px;font-size:15px;border:1px solid #7ab8ff;border-radius:4px;font-weight:bold;text-align:center;background-color:#fff;color:#333}
+  .rita-kuma-col{display:flex;flex-direction:column;gap:2px;flex-shrink:0}
+  .btn-rita-kuma{font-size:10px;padding:2px 6px;border-radius:4px;border:1px solid #bbb;cursor:pointer;font-weight:bold;transition:background 0.15s,color 0.15s,border-color 0.15s;background:#f5f5f5;color:#888;white-space:nowrap}
   .btn-rita-kuma.active-rita-kuma{background:#e8f0ff;color:#06c;border-color:#7ab8ff}
-  .btn-opt-monster{background:#06c;color:#fff;border:none;border-radius:6px;font-size:10px;font-weight:bold;cursor:pointer;padding:4px 6px;line-height:1.3;white-space:nowrap;flex-shrink:0;height:36px;display:flex;align-items:center}
+  .btn-opt-monster{background:#06c;color:#fff;border:none;border-radius:6px;font-size:10px;font-weight:bold;cursor:pointer;padding:3px 6px;line-height:1.3;white-space:nowrap;flex-shrink:0}
   .btn-opt-monster.is-optimal{opacity:0.5;cursor:not-allowed}
 
   /* ── 経験値・討伐数行 ────────────────────────────────────────────── */
@@ -1324,10 +1310,7 @@ v1.1.7
   .overflow-text{font-size:9px;color:#999;margin-top:2px}
   .call-count-col{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center}
   .call-count-label{font-size:7px;color:#666;margin-bottom:2px}
-  .call-count-control{display:flex;align-items:center;gap:2px;height:32px}
-  .call-arrow{width:28px;height:28px;border-radius:4px;border:1px solid #7ab8ff;background:#f0f7ff;color:#06c;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0}
-  .call-arrow:hover{background:#dbeafe}
-  .call-count-select{width:50px;padding:2px;font-size:18px;font-weight:bold;border:1px solid #7ab8ff;border-radius:4px;text-align:center;background-color:#fff;color:#333;height:28px}
+  .call-count-select{width:100%;padding:2px;font-size:18px;font-weight:bold;border:1px solid #7ab8ff;border-radius:4px;text-align:center;background-color:#fff;color:#333}
 
   /* ── タイマー行（バフ設定） ──────────────────────────────────────── */
   .timer-row{background:#f8f9fc;border-radius:6px;padding:6px 8px;margin-bottom:8px;display:flex;gap:8px;align-items:stretch}
@@ -1338,6 +1321,7 @@ v1.1.7
   .buff-row-2{display:flex;align-items:center;gap:8px;font-size:11px;justify-content:flex-end;border-top:1px solid #ddd;padding-top:3px}
   .buff-row-3{display:flex;gap:8px;font-size:11px;justify-content:flex-end}
   .elixir-radio-row{display:flex;gap:8px;font-size:11px}
+  .btn-oc{background:#fff1f0;border:1px solid #ffa39e;color:#cf1322;border-radius:4px;padding:4px 8px;font-size:10px;line-height:1.2;cursor:pointer;white-space:nowrap;flex-shrink:0}
   .btn-timer-stop{width:79px;font-size:12px;border-radius:4px;cursor:pointer;font-weight:bold;padding:2px;background:#008888;color:#fff;border:1px solid #00aaaa;align-self:stretch;line-height:1.3}
 
   /* ── 合計＋加算ボタン行 ──────────────────────────────────────────── */
@@ -1368,19 +1352,18 @@ v1.1.7
   .btn-warning{background:#fff1f0;border:1px solid #ffa39e;color:#cf1322;border-radius:4px}
   .btn-teal{background:#00bcd4;color:#fff;border:none;border-radius:4px}
 
-  /* ── 通帳エリア ──────────────────────────────────────────────────── */
-  .passbook-area{background:#f0f7ff;border-radius:6px;padding:4px 8px;display:flex;flex-direction:column;gap:3px;margin-bottom:6px}
-  .passbook-info{font-size:13px;text-align:center;font-weight:bold;display:flex;align-items:center;justify-content:center;gap:8px}
-  .btn-oc-passbook{background:#fff1f0;border:1px solid #ffa39e;color:#cf1322;border-radius:4px;padding:2px 10px;font-size:11px;line-height:1.4;cursor:pointer;white-space:nowrap;flex-shrink:0;font-weight:bold}
-  .passbook-exp-value,.passbook-limit-value{font-size:15px;font-weight:bold}
-  .passbook-buttons{display:flex;gap:6px;justify-content:center}
-  .passbook-buttons button{background:#06c;color:#fff;border:none;border-radius:4px;padding:3px 8px;font-size:11px;cursor:pointer;flex:1}
-
   /* ── 履歴コピー＋想定玉給 ────────────────────────────────────────── */
   .row-copy-reward{display:flex;gap:6px;margin-bottom:6px;align-items:center}
   .btn-copy{flex:3;white-space:nowrap;background:#008888;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:bold;display:flex;align-items:center;justify-content:center;padding:4px 8px;font-size:12px}
   .reward-card{flex:7;border-radius:6px;padding:3px 6px;text-align:center;font-size:12px;display:flex;align-items:center;justify-content:center;background:#f0f7ff}
   .estimated-gold-value{font-weight:bold;font-size:13px;margin-left:4px}
+
+  /* ── 通帳エリア ──────────────────────────────────────────────────── */
+  .passbook-area{background:#f0f7ff;border-radius:6px;padding:4px 8px;display:flex;flex-direction:column;gap:3px;margin-bottom:6px}
+  .passbook-info{font-size:13px;text-align:center;font-weight:bold}
+  .passbook-exp-value,.passbook-limit-value{font-size:15px;font-weight:bold}
+  .passbook-buttons{display:flex;gap:6px;justify-content:center}
+  .passbook-buttons button{background:#06c;color:#fff;border:none;border-radius:4px;padding:3px 8px;font-size:11px;cursor:pointer;flex:1}
 
   /* ── 行履歴 ──────────────────────────────────────────────────────── */
   .row-history{margin-top:4px;max-height:250px;overflow-y:auto;border-top:1px solid #eee}
@@ -1415,10 +1398,6 @@ v1.1.7
   .modal-image{max-width:100%;height:auto;border-radius:6px}
   .modal-caption{margin:8px 0 0 0;font-size:12px;color:#666;text-align:center}
   .modal-changelog{margin:0;font-size:12px;white-space:pre-wrap;font-family:monospace;color:#333}
-  .ref-table-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-  .ref-table-card{background:#f8f9fc;border-radius:6px;padding:8px;text-align:center}
-  .ref-table-title{font-weight:bold;margin-bottom:6px;font-size:13px}
-  .ref-table-img{max-width:100%;height:auto;border-radius:4px;border:1px solid #eee}
 
   /* ════════════════════════════════════════════════════════════════
      ダークモード（全要素網羅。平均タイム/想定玉給/総獲得/通帳等を含む）
@@ -1436,8 +1415,6 @@ v1.1.7
   body.dark-mode .call-count-select,
   body.dark-mode .rs,
   body.dark-mode .cs{background-color:#2a2f45;color:#5a9eff;border-color:#7ab8ff}
-  body.dark-mode .call-arrow{background:#2a2f45;border-color:#5a9eff;color:#5a9eff}
-  body.dark-mode .call-arrow:hover{background:#3a4f65}
 
   body.dark-mode .exp-card{background:#2a2f45;border-color:#7ab8ff}
   body.dark-mode .current-exp-value{color:#5a9eff}
@@ -1452,6 +1429,7 @@ v1.1.7
   body.dark-mode .buff-row-2,
   body.dark-mode .buff-row-3,
   body.dark-mode .passbook-label{color:#e8e8f0}
+  body.dark-mode .btn-oc{background:#2a1515;border:1px solid #883333;color:#cc7777}
   body.dark-mode .btn-timer-stop{background:#006666;border:1px solid #008888}
 
   body.dark-mode .panel-bg{background:#0f0f17;border-color:#2a2a3a}
@@ -1477,7 +1455,6 @@ v1.1.7
   body.dark-mode .text-orange{color:#ffaa66}
 
   body.dark-mode .passbook-area{background:#1e2a44}
-  body.dark-mode .btn-oc-passbook{background:#2a1515;border-color:#883333;color:#cc7777}
   body.dark-mode .passbook-buttons button{background:#1a73e8}
 
   body.dark-mode .row-history{border-top-color:#2a2a3a;background:#1a1a2a}
@@ -1498,8 +1475,6 @@ v1.1.7
   body.dark-mode .modal-changelog{color:#cbd5e1}
   body.dark-mode .modal-caption{color:#94a3b8}
   body.dark-mode .modal-image{filter:brightness(0.9)}
-  body.dark-mode .ref-table-card{background:#0f0f17}
-  body.dark-mode .ref-table-img{border-color:#2a2a3a}
 `;
   }
 
