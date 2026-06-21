@@ -752,7 +752,7 @@ ${getStyles()}
       <option value="dearthlicant"  data-base="15191" data-bonus="0">ダースリカント</option>
       <option value="golem_strong"  data-base="20350" data-bonus="0">ゴーレム強</option>
     </select>
-    <div class="rita-kuma-col">
+    <div class="rita-kuma-row">
       <button id="btnRita" class="btn-rita-kuma active-rita-kuma">◯リタ</button>
       <button id="btnKuma" class="btn-rita-kuma">◯クマ</button>
     </div>
@@ -766,18 +766,24 @@ ${getStyles()}
     </div>
     <div class="call-count-col">
       <div class="call-count-label">討伐数</div>
-      <select id="cn" class="call-count-select">
-        <option value="1">A</option><option value="2">B</option><option value="3">C</option>
-        <option value="4">D</option><option value="5">E</option><option value="6">F</option>
-        <option value="7">G</option><option value="8">H</option><option value="9">I</option>
-        <option value="10">J</option><option value="11" selected>K</option><option value="12">L</option>
-      </select>
+      <div class="call-count-controls">
+        <button id="btnCallMinus" class="btn-call-adjust">◀</button>
+        <select id="cn" class="call-count-select">
+          <option value="1">A</option><option value="2">B</option><option value="3">C</option>
+          <option value="4">D</option><option value="5">E</option><option value="6">F</option>
+          <option value="7">G</option><option value="8">H</option><option value="9">I</option>
+          <option value="10">J</option><option value="11" selected>K</option><option value="12">L</option>
+        </select>
+        <button id="btnCallPlus" class="btn-call-adjust">▶</button>
+      </div>
     </div>
   </div>
 
   <div id="timer-row" class="timer-row">
     <div class="buff-area">
       <div class="buff-row-1">
+        <button id="btnBuffReset" class="btn-oc">OC</button>
+        <span class="passbook-label">通帳:</span>
         <div class="passbook-radio-group">
           <label><input name="pb" type="radio" value="0" checked />無</label>
           <label><input name="pb" type="radio" value="5000000" />1</label>
@@ -785,7 +791,6 @@ ${getStyles()}
         </div>
       </div>
       <div class="buff-row-2">
-        <button id="btnBuffReset" class="btn-oc">OC</button>
         <label><input id="fd" type="checkbox" checked />料理</label>
         <label><input id="tr" type="checkbox" />修練</label>
         <label><input id="ag" type="checkbox" />エンゼル</label>
@@ -799,8 +804,9 @@ ${getStyles()}
         </div>
       </div>
     </div>
-    <button id="btnTimerStop" class="btn-timer-stop">タイマー<br>開始</button>
   </div>
+
+  <button id="btnTimerStop" class="btn-timer-stop-standalone">タイマー<br>開始</button>
 
   <div class="row-total-calc">
     <div class="total-panel panel-bg">
@@ -1100,6 +1106,24 @@ ${getStyles()}
           .forEach(el => { el.onchange = () => updateUI(true); });
       $("cn").onchange = () => updateUI(false);
 
+      // 討伐数増減ボタン
+      $("btnCallMinus").onclick = () => {
+        const sel = $("cn");
+        const current = parseInt(sel.value);
+        if (current > 1) {
+          sel.value = String(current - 1);
+          updateUI(false);
+        }
+      };
+      $("btnCallPlus").onclick = () => {
+        const sel = $("cn");
+        const current = parseInt(sel.value);
+        if (current < 12) {
+          sel.value = String(current + 1);
+          updateUI(false);
+        }
+      };
+
       // 通帳ラジオボタン切り替え時：新上限を超えた pass 行を新しい順から切り捨て
       root.querySelectorAll('input[name="pb"]').forEach(radio => {
         radio.onchange = () => {
@@ -1291,13 +1315,15 @@ v1.1.7
   .invisible{visibility:hidden}
 
   /* ── 上段: LAP通知/モンスター/リタ/クマ/最適モンスター ───────────── */
-  .row-top{display:flex;gap:4px;margin-bottom:6px;align-items:center}
+  .row-top{display:flex;gap:4px;margin-bottom:6px;align-items:center;min-height:48px}
   .notify-toggle{display:flex;align-items:center;gap:4px;background:#f0f7ff;padding:2px 8px;border-radius:20px;font-size:11px;border:1px solid #7ab8ff;flex-shrink:0}
   .notify-toggle input{width:16px;height:16px;margin:0;cursor:pointer}
   .notify-toggle label{cursor:pointer;font-size:11px;margin:0}
   .monster-select{flex:1.5;padding:6px;font-size:15px;border:1px solid #7ab8ff;border-radius:4px;font-weight:bold;text-align:center;background-color:#fff;color:#333}
-  .rita-kuma-col{display:flex;flex-direction:column;gap:2px;flex-shrink:0}
-  .btn-opt-monster{background:#06c;color:#fff;border:none;border-radius:6px;font-size:10px;font-weight:bold;cursor:pointer;padding:3px 6px;line-height:1.3;white-space:nowrap;flex-shrink:0}
+  .rita-kuma-row{display:flex;gap:3px;flex-shrink:0}
+  .btn-rita-kuma{font-size:10px;padding:2px 6px;border-radius:4px;border:1px solid #bbb;cursor:pointer;font-weight:bold;transition:background 0.15s,color 0.15s,border-color 0.15s;background:#f5f5f5;color:#888;white-space:nowrap}
+  .btn-rita-kuma.active-rita-kuma{background:#e8f0ff;color:#06c;border-color:#7ab8ff}
+  .btn-opt-monster{background:#06c;color:#fff;border:none;border-radius:6px;font-size:10px;font-weight:bold;cursor:pointer;padding:3px 8px;line-height:1.3;white-space:nowrap;flex-shrink:0;width:66px}
   .btn-opt-monster.is-optimal{opacity:0.5;cursor:not-allowed}
 
   /* ── 経験値・討伐数行 ────────────────────────────────────────────── */
@@ -1305,20 +1331,23 @@ v1.1.7
   .exp-card{flex:3;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:4px;background:#f0f7ff;border:1px solid #7ab8ff;border-radius:6px}
   .current-exp-value{font-size:22px;font-weight:bold;color:#06c}
   .overflow-text{font-size:9px;color:#999;margin-top:2px}
-  .call-count-col{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center}
-  .call-count-label{font-size:7px;color:#666;margin-bottom:2px}
-  .call-count-select{width:100%;padding:2px;font-size:18px;font-weight:bold;border:1px solid #7ab8ff;border-radius:4px;text-align:center;background-color:#fff;color:#333}
+  .call-count-col{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px}
+  .call-count-label{font-size:7px;color:#666}
+  .call-count-controls{display:flex;align-items:center;gap:2px;justify-content:center}
+  .btn-call-adjust{width:24px;height:24px;padding:0;font-size:12px;border:1px solid #bbb;background:#f5f5f5;color:#333;cursor:pointer;border-radius:3px;font-weight:bold}
+  .call-count-select{width:45px;padding:2px;font-size:16px;font-weight:bold;border:1px solid #7ab8ff;border-radius:4px;text-align:center;background-color:#fff;color:#333}
 
   /* ── タイマー行（バフ設定） ──────────────────────────────────────── */
-  .timer-row{background:#f8f9fc;border-radius:6px;padding:6px 8px;margin-bottom:8px;display:flex;gap:8px;align-items:stretch}
-  .buff-area{flex:1;display:flex;flex-direction:column;justify-content:space-between;gap:4px;min-width:0}
-  .buff-row-1{display:flex;gap:10px;font-size:11px;justify-content:flex-end;align-items:center}
+  .timer-row{background:#f8f9fc;border-radius:6px;padding:6px 8px;margin-bottom:8px;display:flex;flex-direction:column;gap:4px}
+  .buff-area{display:flex;flex-direction:column;gap:4px}
+  .buff-row-1{display:flex;gap:8px;font-size:11px;align-items:center;justify-content:flex-end}
+  .passbook-label{font-size:11px;font-weight:bold;color:#333;margin:0}
   .passbook-radio-group{display:flex;gap:12px;font-size:11px}
-  .buff-row-2{display:flex;align-items:center;gap:8px;font-size:11px;justify-content:flex-end;border-top:1px solid #ddd;padding-top:3px}
+  .buff-row-2{display:flex;gap:8px;font-size:11px;justify-content:flex-end;border-top:1px solid #ddd;padding-top:3px}
   .buff-row-3{display:flex;gap:8px;font-size:11px;justify-content:flex-end}
   .elixir-radio-row{display:flex;gap:8px;font-size:11px}
   .btn-oc{background:#fff1f0;border:1px solid #ffa39e;color:#cf1322;border-radius:4px;padding:4px 8px;font-size:10px;line-height:1.2;cursor:pointer;white-space:nowrap;flex-shrink:0}
-  .btn-timer-stop{width:79px;font-size:12px;border-radius:4px;cursor:pointer;font-weight:bold;padding:2px;background:#008888;color:#fff;border:1px solid #00aaaa;align-self:stretch;line-height:1.3}
+  .btn-timer-stop-standalone{width:79px;font-size:12px;border-radius:4px;cursor:pointer;font-weight:bold;padding:6px 2px;background:#008888;color:#fff;border:1px solid #00aaaa;line-height:1.3;margin-left:auto;margin-right:0;margin-bottom:0}
 
   /* ── 合計＋加算ボタン行 ──────────────────────────────────────────── */
   .row-total-calc{display:flex;gap:6px;margin-bottom:8px}
@@ -1421,8 +1450,13 @@ v1.1.7
 
   body.dark-mode .timer-row{background:#2a2f45}
   body.dark-mode .buff-row-2{border-top-color:#3a3a4a}
+  body.dark-mode .buff-row-1,
+  body.dark-mode .buff-row-2,
+  body.dark-mode .buff-row-3,
+  body.dark-mode .passbook-label{color:#e8e8f0}
+  body.dark-mode .btn-call-adjust{background:#2a2a3a;color:#e8e8f0;border-color:#555}
   body.dark-mode .btn-oc{background:#2a1515;border:1px solid #883333;color:#cc7777}
-  body.dark-mode .btn-timer-stop{background:#006666;border:1px solid #008888}
+  body.dark-mode .btn-timer-stop-standalone{background:#006666;border:1px solid #008888}
 
   body.dark-mode .panel-bg{background:#0f0f17;border-color:#2a2a3a}
   body.dark-mode .total-value{color:#fff}
