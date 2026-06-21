@@ -254,12 +254,13 @@
     function lookupOptimalMonster() {
       const elixir = root.querySelector('input[name="e_exp"]:checked')?.value || "none";
       if (elixir === "none") return "durahan";
-      const tr  = $("tr").checked ? "○" : "×";
-      const ag  = $("ag").checked ? "○" : "×";
-      const em  = $("em").checked ? "○" : "×";
+      const food = $("fd").checked ? "1" : "0";
+      const tr   = $("tr").checked ? "1" : "0";
+      const ag   = $("ag").checked ? "1" : "0";
+      const em   = $("em").checked ? "1" : "0";
       const pbRaw = root.querySelector('input[name="pb"]:checked')?.value || "0";
-      const pb  = pbRaw === "5000000" ? "1" : pbRaw === "10000000" ? "2" : "0";
-      const key = `${elixir}|${tr}|${ag}|${em}|${pb}`;
+      const pb   = pbRaw !== "0" ? "1" : "0";
+      const key  = `${food}|${tr}|${ag}|${em}|${elixir}|${pb}`;
       const result = CSV2_TABLE[key];
       if (!result) return "durahan";
       return result === "rita_or_kuma" ? ritaOrKuma : result;
@@ -753,8 +754,8 @@ ${getStyles()}
       <option value="golem_strong"  data-base="20350" data-bonus="0">ゴーレム強</option>
     </select>
     <div class="rita-kuma-col">
-      <button id="btnRita" class="btn-rita-kuma active-rita-kuma">◯リタ</button>
-      <button id="btnKuma" class="btn-rita-kuma">◯クマ</button>
+      <button id="btnRita" class="btn-rita-kuma active-rita-kuma">リタ</button>
+      <button id="btnKuma" class="btn-rita-kuma">クマ</button>
     </div>
     <button id="btnOptMonster" class="btn-opt-monster">最適<br>ﾓﾝｽﾀｰ</button>
   </div>
@@ -766,18 +767,23 @@ ${getStyles()}
     </div>
     <div class="call-count-col">
       <div class="call-count-label">討伐数</div>
-      <select id="cn" class="call-count-select">
-        <option value="1">A</option><option value="2">B</option><option value="3">C</option>
-        <option value="4">D</option><option value="5">E</option><option value="6">F</option>
-        <option value="7">G</option><option value="8">H</option><option value="9">I</option>
-        <option value="10">J</option><option value="11" selected>K</option><option value="12">L</option>
-      </select>
+      <div class="call-count-stepper">
+        <button id="btnCallDown" type="button" class="call-count-arrow">◀</button>
+        <select id="cn" class="call-count-select">
+          <option value="1">A</option><option value="2">B</option><option value="3">C</option>
+          <option value="4">D</option><option value="5">E</option><option value="6">F</option>
+          <option value="7">G</option><option value="8">H</option><option value="9">I</option>
+          <option value="10">J</option><option value="11" selected>K</option><option value="12">L</option>
+        </select>
+        <button id="btnCallUp" type="button" class="call-count-arrow">▶</button>
+      </div>
     </div>
   </div>
 
   <div id="timer-row" class="timer-row">
     <div class="buff-area">
       <div class="buff-row-1">
+        <button id="btnBuffReset" class="btn-oc">OC</button>
         <span class="passbook-label">通帳:</span>
         <div class="passbook-radio-group">
           <label><input name="pb" type="radio" value="0" checked />無</label>
@@ -786,7 +792,6 @@ ${getStyles()}
         </div>
       </div>
       <div class="buff-row-2">
-        <button id="btnBuffReset" class="btn-oc">OC</button>
         <label><input id="fd" type="checkbox" checked />料理</label>
         <label><input id="tr" type="checkbox" />修練</label>
         <label><input id="ag" type="checkbox" />エンゼル</label>
@@ -1097,6 +1102,19 @@ ${getStyles()}
         updateUI(true);
       };
 
+      $("btnCallDown").onclick = () => {
+        const sel = $("cn");
+        const newVal = Math.max(1, parseInt(sel.value) - 1);
+        sel.value = String(newVal);
+        updateUI(false);
+      };
+      $("btnCallUp").onclick = () => {
+        const sel = $("cn");
+        const newVal = Math.min(12, parseInt(sel.value) + 1);
+        sel.value = String(newVal);
+        updateUI(false);
+      };
+
       root.querySelectorAll('input[name="e_exp"], #fd, #tr, #ag, #em, #ms')
           .forEach(el => { el.onchange = () => updateUI(true); });
       $("cn").onchange = () => updateUI(false);
@@ -1292,15 +1310,15 @@ v1.1.7
   .invisible{visibility:hidden}
 
   /* ── 上段: LAP通知/モンスター/リタ/クマ/最適モンスター ───────────── */
-  .row-top{display:flex;gap:4px;margin-bottom:6px;align-items:center}
-  .notify-toggle{display:flex;align-items:center;gap:4px;background:#f0f7ff;padding:2px 8px;border-radius:20px;font-size:11px;border:1px solid #7ab8ff;flex-shrink:0}
+  .row-top{display:flex;gap:4px;margin-bottom:6px;align-items:center;min-height:36.75px}
+  .notify-toggle{display:flex;align-items:center;gap:4px;background:#f0f7ff;padding:2px 8px;border-radius:20px;font-size:11px;border:1px solid #7ab8ff;flex-shrink:0;align-self:stretch}
   .notify-toggle input{width:16px;height:16px;margin:0;cursor:pointer}
   .notify-toggle label{cursor:pointer;font-size:11px;margin:0}
-  .monster-select{flex:1.5;padding:6px;font-size:15px;border:1px solid #7ab8ff;border-radius:4px;font-weight:bold;text-align:center;background-color:#fff;color:#333}
-  .rita-kuma-col{display:flex;flex-direction:column;gap:2px;flex-shrink:0}
-  .btn-rita-kuma{font-size:10px;padding:2px 6px;border-radius:4px;border:1px solid #bbb;cursor:pointer;font-weight:bold;transition:background 0.15s,color 0.15s,border-color 0.15s;background:#f5f5f5;color:#888;white-space:nowrap}
+  .monster-select{flex:1.5;padding:6px;font-size:15px;border:1px solid #7ab8ff;border-radius:4px;font-weight:bold;text-align:center;background-color:#fff;color:#333;align-self:stretch}
+  .rita-kuma-col{display:flex;flex-direction:row;gap:2px;flex-shrink:0;align-self:stretch}
+  .btn-rita-kuma{font-size:10px;padding:2px 6px;border-radius:4px;border:1px solid #bbb;cursor:pointer;font-weight:bold;transition:background 0.15s,color 0.15s,border-color 0.15s;background:#f5f5f5;color:#888;white-space:nowrap;flex:1}
   .btn-rita-kuma.active-rita-kuma{background:#e8f0ff;color:#06c;border-color:#7ab8ff}
-  .btn-opt-monster{background:#06c;color:#fff;border:none;border-radius:6px;font-size:10px;font-weight:bold;cursor:pointer;padding:3px 6px;line-height:1.3;white-space:nowrap;flex-shrink:0}
+  .btn-opt-monster{background:#06c;color:#fff;border:none;border-radius:6px;font-size:10px;font-weight:bold;cursor:pointer;padding:3px 6px;line-height:1.3;white-space:nowrap;flex-shrink:0;align-self:stretch}
   .btn-opt-monster.is-optimal{opacity:0.5;cursor:not-allowed}
 
   /* ── 経験値・討伐数行 ────────────────────────────────────────────── */
@@ -1310,7 +1328,9 @@ v1.1.7
   .overflow-text{font-size:9px;color:#999;margin-top:2px}
   .call-count-col{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center}
   .call-count-label{font-size:7px;color:#666;margin-bottom:2px}
-  .call-count-select{width:100%;padding:2px;font-size:18px;font-weight:bold;border:1px solid #7ab8ff;border-radius:4px;text-align:center;background-color:#fff;color:#333}
+  .call-count-stepper{display:flex;align-items:stretch;width:100%;gap:2px}
+  .call-count-arrow{flex:0 0 18px;padding:0;font-size:11px;font-weight:bold;border:1px solid #7ab8ff;border-radius:4px;background-color:#f0f7ff;color:#06c;cursor:pointer;display:flex;align-items:center;justify-content:center}
+  .call-count-select{flex:1;min-width:0;padding:2px;font-size:18px;font-weight:bold;border:1px solid #7ab8ff;border-radius:4px;text-align:center;background-color:#fff;color:#333}
 
   /* ── タイマー行（バフ設定） ──────────────────────────────────────── */
   .timer-row{background:#f8f9fc;border-radius:6px;padding:6px 8px;margin-bottom:8px;display:flex;gap:8px;align-items:stretch}
@@ -1321,7 +1341,7 @@ v1.1.7
   .buff-row-2{display:flex;align-items:center;gap:8px;font-size:11px;justify-content:flex-end;border-top:1px solid #ddd;padding-top:3px}
   .buff-row-3{display:flex;gap:8px;font-size:11px;justify-content:flex-end}
   .elixir-radio-row{display:flex;gap:8px;font-size:11px}
-  .btn-oc{background:#fff1f0;border:1px solid #ffa39e;color:#cf1322;border-radius:4px;padding:4px 8px;font-size:10px;line-height:1.2;cursor:pointer;white-space:nowrap;flex-shrink:0}
+  .btn-oc{background:#fff1f0;border:1px solid #ffa39e;color:#cf1322;border-radius:4px;padding:4px 8px;font-size:10px;line-height:1.2;cursor:pointer;white-space:nowrap;flex-shrink:0;margin-right:auto}
   .btn-timer-stop{width:79px;font-size:12px;border-radius:4px;cursor:pointer;font-weight:bold;padding:2px;background:#008888;color:#fff;border:1px solid #00aaaa;align-self:stretch;line-height:1.3}
 
   /* ── 合計＋加算ボタン行 ──────────────────────────────────────────── */
@@ -1415,6 +1435,7 @@ v1.1.7
   body.dark-mode .call-count-select,
   body.dark-mode .rs,
   body.dark-mode .cs{background-color:#2a2f45;color:#5a9eff;border-color:#7ab8ff}
+  body.dark-mode .call-count-arrow{background-color:#2a2f45;color:#5a9eff;border-color:#7ab8ff}
 
   body.dark-mode .exp-card{background:#2a2f45;border-color:#7ab8ff}
   body.dark-mode .current-exp-value{color:#5a9eff}
