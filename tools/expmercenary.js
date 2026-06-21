@@ -752,11 +752,6 @@ ${getStyles()}
       <option value="dearthlicant"  data-base="15191" data-bonus="0">ダースリカント</option>
       <option value="golem_strong"  data-base="20350" data-bonus="0">ゴーレム強</option>
     </select>
-    <select id="pb" class="passbook-select">
-      <option value="0" selected>通帳なし</option>
-      <option value="5000000">通帳1(500万)</option>
-      <option value="10000000">通帳2(1000万)</option>
-    </select>
   </div>
 
   <div class="row-exp-summary">
@@ -782,21 +777,26 @@ ${getStyles()}
 
   <div id="timer-row" class="timer-row">
     <div class="buff-area">
-      <div class="elixir-radio-row">
-        <label><input name="e_exp" type="radio" value="none" />無</label>
-        <label><input name="e_exp" type="radio" value="genki" checked />元気</label>
-        <label><input name="e_exp" type="radio" value="bakushin" />爆伸</label>
+      <div class="buff-row-1">
+        <button id="btnBuffReset" class="btn-oc">opt<br>reset</button>
+        <div class="elixir-radio-row">
+          <label><input name="e_exp" type="radio" value="none" />無</label>
+          <label><input name="e_exp" type="radio" value="genki" checked />元気</label>
+          <label><input name="e_exp" type="radio" value="bakushin" />爆伸</label>
+        </div>
       </div>
-      <div class="buff-checkbox-row">
-        <button id="btnBuffReset" class="btn-oc">OC</button>
-        <div class="buff-checkbox-group">
-          <label><input id="fd" type="checkbox" checked />料理</label>
-          <label><input id="tr" type="checkbox" />修練</label>
-        </div>
-        <div class="buff-checkbox-group">
-          <label><input id="ag" type="checkbox" />エンゼル</label>
-          <label><input id="em" type="checkbox" />皇帝</label>
-        </div>
+      <div class="buff-row-2">
+        <label><input id="fd" type="checkbox" checked />料理</label>
+        <label><input id="tr" type="checkbox" />修練</label>
+        <label><input id="ag" type="checkbox" />エンゼル</label>
+        <label><input id="em" type="checkbox" />皇帝</label>
+      </div>
+      <div class="buff-row-3">
+        <select id="pb" class="passbook-select">
+          <option value="0" selected>通帳なし</option>
+          <option value="5000000">通帳1(500万)</option>
+          <option value="10000000">通帳2(1000万)</option>
+        </select>
       </div>
     </div>
     <button id="btnTimerStop" class="btn-timer-stop">タイマー<br>開始</button>
@@ -825,7 +825,7 @@ ${getStyles()}
       </div>
     </div>
     <div class="timer-buttons-grid">
-      <button id="btnAllClear"   class="btn-warning">AC</button>
+      <button id="btnAllClear"   class="btn-warning">log<br>reset</button>
       <button id="btnTimerPause" class="btn-danger">停止</button>
       <button id="btnJob"        class="btn-teal">転職</button>
       <button id="btnLap"        class="btn-info">LAP</button>
@@ -1310,13 +1310,15 @@ v1.1.7
   .call-count-select{width:100%;padding:2px;font-size:18px;font-weight:bold;border:1px solid #7ab8ff;border-radius:4px;text-align:center;background-color:#fff;color:#333}
 
   /* ── タイマー行（バフ設定） ──────────────────────────────────────── */
-  .timer-row{background:#f8f9fc;border-radius:6px;padding:6px 8px;margin-bottom:8px;display:flex;gap:6px}
-  .buff-area{flex:1;font-size:12px;display:flex;flex-direction:column;align-items:flex-end;padding-right:50px;justify-content:center}
-  .elixir-radio-row{margin-bottom:3px;display:flex;gap:8px}
-  .buff-checkbox-row{border-top:1px solid #ddd;padding-top:3px;width:100%;display:flex;justify-content:flex-end;gap:14px;font-size:11px;align-items:center}
-  .buff-checkbox-group{display:flex;flex-direction:column;gap:2px}
-  .btn-oc{background:#fff1f0;border:1px solid #ffa39e;color:#cf1322;border-radius:4px;padding:6px 12px;font-size:12px;cursor:pointer}
-  .btn-timer-stop{width:72px;font-size:12px;border-radius:4px;cursor:pointer;font-weight:bold;padding:2px;background:#008888;color:#fff;border:1px solid #00aaaa}
+  .timer-row{background:#f8f9fc;border-radius:6px;padding:6px 8px;margin-bottom:8px;display:flex;gap:8px;align-items:stretch}
+  .buff-area{flex:1;display:flex;flex-direction:column;justify-content:space-between;gap:4px;min-width:0}
+  .buff-row-1{display:flex;align-items:center;gap:8px}
+  .elixir-radio-row{display:flex;gap:8px;font-size:12px;flex:1;justify-content:flex-end}
+  .buff-row-2{display:flex;gap:10px;font-size:11px;justify-content:flex-end;border-top:1px solid #ddd;padding-top:3px}
+  .buff-row-3{display:flex;justify-content:flex-end}
+  .buff-row-3 .passbook-select{width:100%;max-width:220px}
+  .btn-oc{background:#fff1f0;border:1px solid #ffa39e;color:#cf1322;border-radius:4px;padding:4px 8px;font-size:10px;line-height:1.2;cursor:pointer;white-space:nowrap;flex-shrink:0}
+  .btn-timer-stop{width:72px;font-size:12px;border-radius:4px;cursor:pointer;font-weight:bold;padding:2px;background:#008888;color:#fff;border:1px solid #00aaaa;align-self:stretch;line-height:1.3}
 
   /* ── 合計＋加算ボタン行 ──────────────────────────────────────────── */
   .row-total-calc{display:flex;gap:6px;margin-bottom:8px}
@@ -1340,9 +1342,9 @@ v1.1.7
   .lap-label-small{font-size:10px}
   .lap-display{font-size:18px;font-weight:bold;color:#2cc9ff;line-height:24px}
   .timer-buttons-grid{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:3px;margin-top:4px}
-  .timer-buttons-grid button{padding:7px;font-size:11px;font-weight:bold;cursor:pointer}
+  .timer-buttons-grid button{padding:6px 2px;font-size:10px;font-weight:bold;cursor:pointer;line-height:1.2;white-space:normal}
   .btn-danger{background:#e74c3c;color:#fff;border:none;border-radius:4px}
-  .btn-info{background:#3498db;color:#fff;border:none;border-radius:4px}
+  .btn-info{background:#1e3a5f;color:#fff;border:none;border-radius:4px}
   .btn-warning{background:#fff1f0;border:1px solid #ffa39e;color:#cf1322;border-radius:4px}
   .btn-teal{background:#00bcd4;color:#fff;border:none;border-radius:4px}
 
@@ -1418,7 +1420,7 @@ v1.1.7
   body.dark-mode .btn-opt-monster{background:#1a6eaa;border:1px solid #3399cc}
 
   body.dark-mode .timer-row{background:#2a2f45}
-  body.dark-mode .buff-checkbox-row{border-top-color:#3a3a4a}
+  body.dark-mode .buff-row-2{border-top-color:#3a3a4a}
   body.dark-mode .btn-oc{background:#2a1515;border:1px solid #883333;color:#cc7777}
   body.dark-mode .btn-timer-stop{background:#006666;border:1px solid #008888}
 
@@ -1433,7 +1435,7 @@ v1.1.7
   body.dark-mode .sync-small{color:#aaa}
   body.dark-mode .lap-display{color:#2cc9ff}
   body.dark-mode .btn-danger{background:#aa3333;color:#fff;border:1px solid #cc5555}
-  body.dark-mode .btn-info{background:#1a77aa;color:#fff;border:1px solid #3399cc}
+  body.dark-mode .btn-info{background:#16243d;color:#fff;border:1px solid #2a3f5f}
   body.dark-mode .btn-warning{background:#2a1515;border:1px solid #883333;color:#cc7777}
   body.dark-mode .btn-teal{background:#1a8899;color:#fff;border:1px solid #33aabb}
 
