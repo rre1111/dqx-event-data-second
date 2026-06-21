@@ -2,6 +2,7 @@
 html, body {
     overscroll-behavior-y: contain;
     overscroll-behavior-x: none;
+    touch-action: manipulation;
 }
 /* ----- ホーム画面 ----- */
 .home-container {
@@ -41,6 +42,33 @@ html, body {
     cursor: pointer;
     color: white;
     box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+    transition: background 0.2s, box-shadow 0.2s;
+}
+
+.dark-toggle-btn:hover {
+    background: #0052a3;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+
+.manage-btn {
+    background: #0066cc;
+    border: none;
+    border-radius: 20px;
+    padding: 8px 16px;
+    font-size: 14px;
+    cursor: pointer;
+    color: white;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+    transition: background 0.2s, box-shadow 0.2s;
+}
+
+.manage-btn:hover {
+    background: #0052a3;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+
+.manage-btn:active {
+    background: #003d7a;
 }
 
 .home-grid {
@@ -501,6 +529,35 @@ body.dark-mode #tool-menu-bar .tool-menu-btn:hover {
 }
 
 /* ダークモード */
+body.dark-mode .home-header {
+    border-bottom-color: #444;
+}
+
+body.dark-mode .dark-toggle-btn {
+    background: #00aaff;
+    color: #000;
+}
+
+body.dark-mode .dark-toggle-btn:hover {
+    background: #0088cc;
+    color: #fff;
+}
+
+body.dark-mode .manage-btn {
+    background: #00aaff;
+    color: #000;
+}
+
+body.dark-mode .manage-btn:hover {
+    background: #0088cc;
+    color: #fff;
+}
+
+body.dark-mode .manage-btn:active {
+    background: #006699;
+    color: #fff;
+}
+
 body.dark-mode .ref-table-card {
     background: #1e293b !important;
     border-color: #334155 !important;
