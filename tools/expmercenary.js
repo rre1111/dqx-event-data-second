@@ -1,8 +1,8 @@
-// ========== 傭兵用多機能ツール ver2.1.0 (merged) ==========
-// ベース: ver2.0.0 統合
+// ========== 傭兵用多機能ツール ver2.2.0 (merged) ==========
+// ベース: ver2.1.0 統合
 // [CSS]    インラインstyleを全廃し、クラスベース設計思想で再定義
 // [AUDIO]  playLapWarning移植（AudioContext管理・resume対応・音色変更）
-// [QUAL]   基本的な動作ロジックは2.0.0から変更なし
+// [QUAL]   基本的な動作ロジックは2.1.0から変更なし
 
 // 変更履歴（ver2.0.0時点）:
 // [BUG] _recalcLaps: 削除後の lastLapSec 更新を正確化
@@ -484,19 +484,34 @@
       }
       row.appendChild(expCell);
 
-      // ── デスペナチェック ────────────────────────────────────────────────
-      const despLabel = document.createElement("label");
-      despLabel.className = "desp-label";
-      const despCb = document.createElement("input");
-      despCb.type      = "checkbox";
-      despCb.className = "desp-tgl";
-      despCb.checked   = hasDeathPenalty;
-      const despIcon = document.createElement("span");
-      despIcon.className   = "desp-icon";
-      despIcon.textContent = "💀";
-      despLabel.appendChild(despCb);
-      despLabel.appendChild(despIcon);
-      row.appendChild(despLabel);
+      // ── デスペナチェック（LAP・転職行には表示しない） ──────────────────
+      if (rowId !== "LAP" && rowType !== "job") {
+        const despLabel = document.createElement("label");
+        despLabel.className = "desp-label";
+        const despCb = document.createElement("input");
+        despCb.type      = "checkbox";
+        despCb.className = "desp-tgl";
+        despCb.checked   = hasDeathPenalty;
+        const despIcon = document.createElement("span");
+        despIcon.className   = "desp-icon";
+        despIcon.textContent = "💀";
+        despLabel.appendChild(despCb);
+        despLabel.appendChild(despIcon);
+        row.appendChild(despLabel);
+
+        despCb.onchange = () => {
+          const newDesp = despCb.checked ? "true" : "false";
+          const bid = row.dataset.bid;
+          rowCache
+            .filter(r => r.dataset.bid === bid && r.dataset.type !== "lap_only" && r.dataset.type !== "job")
+            .forEach(r => {
+              r.dataset.desp = newDesp;
+              const cb = r.querySelector(".desp-tgl");
+              if (cb) cb.checked = despCb.checked;
+            });
+          updateTotal();
+        };
+      }
 
       // ── コントロール（呼び数・パートナー） ──────────────────────────────
       if (rowId !== "LAP" && rowType !== "job") {
@@ -511,26 +526,60 @@
         row.appendChild(controls);
 
         const recalcRowExp = () => {
-          const snap        = JSON.parse(row.dataset.snapshot);
           const newCount    = parseInt(cSel.value);
           const newPartner  = rSel.value;
-          row.dataset.count = newCount;
-          const result = calcExp(newCount, newPartner, snap);
-          const newVal = row.dataset.type === "angel"  ? result.angel
-                       : row.dataset.type === "pass"   ? result.common
-                       : result.total;
-          row.dataset.val          = newVal;
-          row.dataset.rawValCapped = newVal;
-          row.querySelector(".exp-value").textContent = newVal.toLocaleString();
+          const bid = row.dataset.bid;
+
+          // 同一bid（通帳/エンゼル/溢れ）の全行へ呼び数・お供を連携
+          const group = rowCache.filter(r =>
+            r.dataset.bid === bid && r.dataset.type !== "lap_only" && r.dataset.type !== "job");
+
+          const passRow     = group.find(r => r.dataset.type === "pass");
+          const overflowRow = group.find(r => r.dataset.type === "overflow");
+
+          // 通帳行と溢れ行が同居する場合: 加算時点の通帳上限(passVal)を維持し、
+          // 新しい共通exp合計から通帳上限を差し引いた残りを溢れ行に充てる
+          const origPassVal = passRow ? (parseFloat(passRow.dataset.val) || 0) : null;
+
+          group.forEach(r => {
+            const snap = JSON.parse(r.dataset.snapshot);
+            r.dataset.count = newCount;
+
+            const rSelOther = r.querySelector(".rs");
+            const cSelOther = r.querySelector(".cs");
+            if (rSelOther && rSelOther !== rSel) rSelOther.value = newPartner;
+            if (cSelOther && cSelOther !== cSel) cSelOther.value = String(newCount);
+
+            const result = calcExp(newCount, newPartner, snap);
+
+            let newVal;
+            if (r.dataset.type === "angel") {
+              newVal = result.angel;
+            } else if (r.dataset.type === "pass") {
+              // 通帳上限に達していた行は上限値のまま据え置き、未到達なら新しい共通expに追従
+              newVal = origPassVal !== null && overflowRow
+                ? Math.min(result.common, origPassVal)
+                : result.common;
+            } else if (r.dataset.type === "overflow" && passRow) {
+              newVal = Math.max(0, result.common - origPassVal);
+            } else if (r.dataset.type === "overflow") {
+              // 通帳行が無い（全額溢れ）場合
+              newVal = result.common;
+            } else {
+              newVal = result.total;
+            }
+
+            r.dataset.val          = newVal;
+            r.dataset.rawValCapped = newVal;
+            const valEl = r.querySelector(".exp-value");
+            if (valEl) valEl.textContent = newVal.toLocaleString();
+          });
+
           updateTotal();
         };
 
         cSel.onchange = recalcRowExp;
         rSel.onchange = recalcRowExp;
-        despCb.onchange = () => {
-          row.dataset.desp = despCb.checked ? "true" : "false";
-          updateTotal();
-        };
       } else {
         const placeholder = document.createElement("div");
         placeholder.className   = "row-controls-placeholder";
@@ -768,14 +817,14 @@ ${getStyles()}
     <div class="call-count-col">
       <div class="call-count-label">討伐数</div>
       <div class="call-count-stepper">
-        <button id="btnCallDown" type="button" class="call-count-arrow">◀</button>
+        <button id="btnCallDown" type="button" class="call-count-arrow" aria-label="討伐数を減らす"><svg viewBox="0 0 24 24" class="call-count-arrow-icon"><path d="M15 5 L8 12 L15 19" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
         <select id="cn" class="call-count-select">
           <option value="1">A</option><option value="2">B</option><option value="3">C</option>
           <option value="4">D</option><option value="5">E</option><option value="6">F</option>
           <option value="7">G</option><option value="8">H</option><option value="9">I</option>
           <option value="10">J</option><option value="11" selected>K</option><option value="12">L</option>
         </select>
-        <button id="btnCallUp" type="button" class="call-count-arrow">▶</button>
+        <button id="btnCallUp" type="button" class="call-count-arrow" aria-label="討伐数を増やす"><svg viewBox="0 0 24 24" class="call-count-arrow-icon"><path d="M9 5 L16 12 L9 19" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
       </div>
     </div>
   </div>
@@ -1182,7 +1231,21 @@ ${getStyles()}
 </div>
   <div id="tab-changelog" class="modal-tab-content">
     <pre class="modal-changelog">
-v2.1.0 ...最終更新日 2026/06/19
+v2.2.0 ...最終更新日 2026/06/21
+  - LAP及び転職行からデスペナルティを削除
+  - 微細なカラー及びサイズ調整
+  - 通帳選択をラジオボタンに変更
+  - 討伐数選択左右にステッパー追加
+  - 履歴行の連動強化
+  - 大幅なレイアウト配置の変更
+  - querySelectorAll をキャッシュ管理に変更
+  - ritaOrKuma は AC リセット対象外に調整
+  - passbookOffset の端数処理を Math.ceil で統一
+  - ExpCalc をファクトリ関数化（複数インスタンス対応）
+  - CSV1/CSV2 のキー型をすべて文字列に統一
+  - calcLockedUntil の 100ms 制限を廃止
+
+v2.1.0
   - LAP音声通知をresume対応版に更新
   - クラスベースCSSへ全面移行
 
@@ -1326,11 +1389,12 @@ v1.1.7
   .exp-card{flex:3;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:4px;background:#f0f7ff;border:1px solid #7ab8ff;border-radius:6px}
   .current-exp-value{font-size:22px;font-weight:bold;color:#06c}
   .overflow-text{font-size:9px;color:#999;margin-top:2px}
-  .call-count-col{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center}
-  .call-count-label{font-size:7px;color:#666;margin-bottom:2px}
-  .call-count-stepper{display:flex;align-items:stretch;width:100%;gap:2px}
-  .call-count-arrow{flex:0 0 18px;padding:0;font-size:11px;font-weight:bold;border:1px solid #7ab8ff;border-radius:4px;background-color:#f0f7ff;color:#06c;cursor:pointer;display:flex;align-items:center;justify-content:center}
-  .call-count-select{flex:1;min-width:0;padding:2px;font-size:18px;font-weight:bold;border:1px solid #7ab8ff;border-radius:4px;text-align:center;background-color:#fff;color:#333}
+  .call-count-col{flex:1;display:flex;flex-direction:column;align-items:stretch;justify-content:center;height:auto}
+  .call-count-label{font-size:7px;color:#666;margin-bottom:2px;text-align:center;flex-shrink:0}
+  .call-count-stepper{display:flex;align-items:stretch;width:100%;gap:3px;flex:1;min-height:0}
+  .call-count-arrow{flex:0 0 28px;padding:0;border:1px solid #7ab8ff;border-radius:4px;background-color:#f0f7ff;color:#06c;cursor:pointer;display:flex;align-items:center;justify-content:center}
+  .call-count-arrow-icon{width:18px;height:18px}
+  .call-count-select{flex:1;min-width:0;height:100%;padding:2px;font-size:20px;font-weight:bold;border:1px solid #7ab8ff;border-radius:4px;text-align:center;background-color:#fff;color:#333}
 
   /* ── タイマー行（バフ設定） ──────────────────────────────────────── */
   .timer-row{background:#f8f9fc;border-radius:6px;padding:6px 8px;margin-bottom:8px;display:flex;gap:8px;align-items:stretch}
