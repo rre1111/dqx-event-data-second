@@ -1386,7 +1386,7 @@ v1.1.7
 
   /* ── 経験値・討伐数行 ────────────────────────────────────────────── */
   .row-exp-summary{display:flex;gap:4px;margin-bottom:8px;align-items:stretch}
-  .exp-card{flex:3;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:4px;background:#f0f7ff;border:1px solid #7ab8ff;border-radius:6px}
+  .exp-card{flex:2.4;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:4px;background:#f0f7ff;border:1px solid #7ab8ff;border-radius:6px}
   .current-exp-value{font-size:22px;font-weight:bold;color:#06c}
   .overflow-text{font-size:9px;color:#999;margin-top:2px}
   .call-count-col{flex:1;display:flex;flex-direction:column;align-items:stretch;justify-content:center;height:auto}
