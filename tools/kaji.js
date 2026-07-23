@@ -825,8 +825,8 @@
           .kaji-title { font-size:14px !important; }
           .kaji-row { gap:6px !important; }
           .kaji-row > .kaji-panel { padding:8px !important; }
-          .kaji-grid { grid-template-columns: repeat(2, 48px) !important; gap:4px !important; }
-          .kaji-cell { width:48px !important; height:40px !important; }
+          .kaji-grid { grid-template-columns: repeat(2, 72px) !important; gap:6px !important; }
+          .kaji-cell { width:72px !important; height:60px !important; }
           .kaji-cell-num { font-size:12px !important; }
           .kaji-panel { padding:8px !important; }
           .kaji-panel button { font-size:11px !important; padding:6px 8px !important; }
