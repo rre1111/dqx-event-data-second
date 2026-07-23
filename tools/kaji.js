@@ -768,7 +768,7 @@
       const style = document.createElement('style');
       style.id = 'kaji-style';
       style.textContent = `
-        .kaji-wrap { background:#1c1815; color:#ece4d8; padding:16px; border-radius:12px; font-family:'Zen Kaku Gothic New','Hiragino Sans',sans-serif; }
+        .kaji-wrap { background:#1c1815; color:#ece4d8; padding:12px 0 12px 12px; border-radius:12px; font-family:'Zen Kaku Gothic New','Hiragino Sans',sans-serif; }
         .kaji-wrap * { box-sizing:border-box; }
         .kaji-title { font-size:20px; font-weight:800; color:#d97b3f; letter-spacing:1px; }
         .kaji-sub { font-size:12px; color:#a89a8a; }
@@ -777,9 +777,11 @@
         .kaji-tab-btn { padding:8px 14px; border-radius:8px; border:none; cursor:pointer; background:transparent; color:#a89a8a; font-weight:600; font-size:13px; }
         .kaji-tab-btn.active { background:#d97b3f; color:#221a14; }
         .kaji-resetbtn { padding:6px 14px; border-radius:8px; border:1px solid #b0504a; background:transparent; color:#b0504a; font-weight:700; cursor:pointer; font-size:12px; }
-        .kaji-panel { background:#26201b; border-radius:12px; padding:16px; }
-        .kaji-row { display:flex; gap:20px; flex-wrap:nowrap; }
-        .kaji-row > .kaji-panel { min-width:0; flex:1 1 0; }
+        .kaji-panel { background:#26201b; border-radius:12px; padding:16px; position:relative; z-index:0; }
+        .kaji-row { display:flex; gap:12px; flex-wrap:nowrap; align-items:flex-start; margin-right:-4px; }
+        .kaji-row > .kaji-panel { min-width:0; }
+        .kaji-row > .kaji-panel:first-child { flex: 0 0 150px; }
+        .kaji-row > .kaji-panel:last-child { flex: 1.35 1 0; min-width: 0; margin-right:0; }
         .kaji-section-title { font-size:13px; letter-spacing:2px; color:#d97b3f; text-transform:uppercase; font-weight:700; margin-bottom:10px; }
         .kaji-input, .kaji-select { background:#2f2721; border:1px solid #4a3c30; border-radius:6px; color:#ece4d8; padding:6px 8px; font-size:14px; }
         .kaji-input { width:70px; }
@@ -791,16 +793,17 @@
         .kaji-btn:disabled { opacity:0.45; cursor:not-allowed; }
         .kaji-crit-box { padding:12px; background:#2f2721; border-radius:8px; font-size:14px; }
         .kaji-crit-box b.big { color:#d97b3f; font-size:18px; }
-        .kaji-grid { display:inline-grid; grid-template-columns: repeat(2, 84px); gap:6px; }
-        .kaji-cell { position:relative; overflow:visible; height:68px; border-radius:8px; cursor:pointer; display:flex; flex-direction:column; align-items:center; justify-content:center; font-size:12px; gap:2px; border:1.5px dashed #443830; background:#221d19; color:#a89a8a; transition:box-shadow .3s ease, border-color .3s ease, transform .18s ease, background .3s ease; }
+        .kaji-grid { display:inline-grid; grid-template-columns: repeat(2, 63px); gap:5px; }
+        .kaji-grid-shell { display:inline-flex; justify-content:center; align-items:flex-start; padding:6px; border-radius:10px; background:rgba(34,29,25,0.55); position:relative; z-index:1; width:fit-content; max-width:100%; }
+        .kaji-cell { position:relative; overflow:visible; height:51px; border-radius:8px; cursor:pointer; display:flex; flex-direction:column; align-items:center; justify-content:center; font-size:10px; gap:2px; border:1.5px dashed #443830; background:#221d19; color:#a89a8a; transition:box-shadow .3s ease, border-color .3s ease, transform .18s ease, background .3s ease; z-index:2; }
         .kaji-cell.included { border:2px solid #d97b3f; background:#2f2721; color:#ece4d8; }
         .kaji-cell.preview { border-color:#5aa8ff; background:#233145; }
         .kaji-cell.glow { border-color:#7fd4ff; box-shadow:0 0 18px 3px #7fd4ff; }
         .kaji-cell.flash-normal { border-color:#f0c452; background:#3a2c12; box-shadow:0 0 18px 3px #f0c452; transform:scale(1.06); }
         .kaji-cell.flash-crit { border-color:#ff5b3d; background:#3a1712; box-shadow:0 0 28px 6px #ff5b3d; transform:scale(1.12); }
-        .kaji-cell-num { font-size:18px; font-weight:700; }
-        .kaji-cell-zone { font-size:10px; color:#a89a8a; }
-        .kaji-cell-crit { font-size:10px; font-weight:700; }
+        .kaji-cell-num { font-size:14px; font-weight:700; }
+        .kaji-cell-zone { font-size:8px; color:#a89a8a; }
+        .kaji-cell-crit { font-size:8px; font-weight:700; }
         .kaji-popup { position:absolute; top:-4px; left:50%; font-weight:900; text-shadow:0 0 6px rgba(0,0,0,0.8); pointer-events:none; white-space:nowrap; z-index:5; animation:kajiPopUp 0.75s ease-out forwards; }
         @keyframes kajiPopUp { 0%{transform:translate(-50%,4px) scale(0.6);opacity:0;} 15%{transform:translate(-50%,-6px) scale(1.25);opacity:1;} 70%{transform:translate(-50%,-26px) scale(1);opacity:1;} 100%{transform:translate(-50%,-38px) scale(0.9);opacity:0;} }
         @keyframes kajiTempFx { 0%{opacity:0;transform:scale(0.9);} 20%{opacity:1;transform:scale(1.04);} 80%{opacity:0.85;transform:scale(1.0);} 100%{opacity:0;transform:scale(1.0);} }
@@ -810,23 +813,29 @@
         .kaji-tempfx-text { position:absolute; top:8px; left:50%; transform:translateX(-50%); font-size:15px; font-weight:900; white-space:nowrap; }
         .kaji-minilog { margin-top:14px; font-size:11px; max-height:120px; overflow-y:auto; background:#2f2721; border-radius:8px; padding:8px; }
         .kaji-minilog-item { color:#a89a8a; margin-bottom:2px; }
-        .kaji-skill-btn { text-align:left; padding:8px 10px; border-radius:8px; border:1px solid #443830; background:#2f2721; color:#ece4d8; cursor:pointer; font-size:13px; width:100%; margin-bottom:6px; }
+        .kaji-skill-btn { text-align:left; padding:8px 10px; border-radius:8px; border:1px solid #443830; background:#2f2721; color:#ece4d8; cursor:pointer; font-size:11px; width:100%; margin-bottom:6px; }
         .kaji-skill-btn.selected { border:1.5px solid #d97b3f; }
         .kaji-skill-btn:disabled { background:#1d1815; color:#665a4d; cursor:not-allowed; }
-        .kaji-skill-head { display:flex; justify-content:space-between; }
-        .kaji-skill-desc { font-size:11px; color:#a89a8a; }
+        .kaji-skill-head { display:flex; justify-content:space-between; gap:6px; }
+        .kaji-skill-desc { font-size:9px; color:#a89a8a; line-height:1.3; }
         .kaji-preset-item { display:flex; justify-content:space-between; align-items:center; background:#2f2721; border-radius:6px; padding:6px 10px; font-size:12px; margin-bottom:6px; }
         .kaji-preset-link { padding:3px 10px; border-radius:6px; border:1px solid #8fa3ad; background:transparent; color:#8fa3ad; cursor:pointer; font-size:12px; }
         .kaji-preset-link.danger { border-color:#b0504a; color:#b0504a; }
         .kaji-log-item { padding:6px; background:#2f2721; border-radius:6px; margin-bottom:6px; font-size:12px; }
-        .kaji-candidate-box { margin-top:10px; padding:8px; background:#2f2721; border-radius:8px; font-size:11px; max-height:140px; overflow-y:auto; }
+        .kaji-candidate-box { margin-top:10px; padding:8px; background:#2f2721; border-radius:8px; font-size:9px; max-height:140px; overflow-y:auto; line-height:1.3; }
         @media (max-width: 560px) {
-          .kaji-wrap { padding:6px !important; }
+          .kaji-wrap { padding:6px 0 6px 6px !important; }
           .kaji-title { font-size:14px !important; }
           .kaji-row { gap:6px !important; }
           .kaji-row > .kaji-panel { padding:8px !important; }
-          .kaji-grid { grid-template-columns: repeat(2, 72px) !important; gap:6px !important; }
-          .kaji-cell { width:72px !important; height:60px !important; }
+          .kaji-row > .kaji-panel:first-child { flex-basis: 130px !important; flex-grow: 0 !important; }
+          .kaji-row > .kaji-panel:last-child { flex: 1.2 1 auto !important; }
+          .kaji-grid { grid-template-columns: repeat(2, 54px) !important; gap:4px !important; }
+          .kaji-grid-shell { padding:8px 6px !important; }
+          .kaji-cell { width:54px !important; height:44px !important; font-size:9px !important; }
+          .kaji-cell-num { font-size:12px !important; }
+          .kaji-cell-zone { font-size:7px !important; }
+          .kaji-cell-crit { font-size:7px !important; }
           .kaji-cell-num { font-size:12px !important; }
           .kaji-panel { padding:8px !important; }
           .kaji-panel button { font-size:11px !important; padding:6px 8px !important; }
@@ -1025,17 +1034,16 @@
       if (!s.shapeLocked && includedCount > 0) {
         let rows = '';
         Object.values(s.grid).filter(c => c.included).forEach(cell => {
-          rows += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">' +
-            '<span style="font-size:12px;color:#a89a8a;width:44px;">(' + (cell.r + 1) + ',' + (cell.c + 1) + ')</span>' +
-            '<input class="kaji-input" type="number" placeholder="下限" data-field="zoneMin" data-r="' + cell.r + '" data-c="' + cell.c + '" value="' + (cell.zoneMin == null ? '' : cell.zoneMin) + '">' +
+          rows += '<div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;font-size:10px;">' +
+            '<span style="color:#a89a8a;width:34px;font-size:9px;">(' + (cell.r + 1) + ',' + (cell.c + 1) + ')</span>' +
+            '<input class="kaji-input" type="number" placeholder="下限" data-field="zoneMin" data-r="' + cell.r + '" data-c="' + cell.c + '" value="' + (cell.zoneMin == null ? '' : cell.zoneMin) + '" style="width:70px;min-width:70px;font-size:10px;">' +
             '<span style="color:#a89a8a;">〜</span>' +
-            '<input class="kaji-input" type="number" placeholder="上限" data-field="zoneMax" data-r="' + cell.r + '" data-c="' + cell.c + '" value="' + (cell.zoneMax == null ? '' : cell.zoneMax) + '">' +
+            '<input class="kaji-input" type="number" placeholder="上限" data-field="zoneMax" data-r="' + cell.r + '" data-c="' + cell.c + '" value="' + (cell.zoneMax == null ? '' : cell.zoneMax) + '" style="width:70px;min-width:70px;font-size:10px;">' +
             '</div>';
         });
-        zonePanel = '<div class="kaji-panel" style="min-width:260px;">' +
-          '<div class="kaji-section-title">選択マスの成功ゾーン（絶対値入力）</div>' +
-          '<div style="max-height:340px;overflow-y:auto;">' + rows + '</div>' +
-          '<div style="font-size:11px;color:#a89a8a;margin-top:10px;">ゾーン内から大成功の1点がランダムに決まります（非公開）</div>' +
+        zonePanel = '<div class="kaji-panel" style="min-width:220px;flex:1 1 320px;padding:12px 12px 12px 12px;">' +
+          '<div class="kaji-section-title">成功ゾーン</div>' +
+          '<div style="max-height:300px;overflow-y:auto;">' + rows + '</div>' +
         '</div>';
       }
 
@@ -1069,8 +1077,8 @@
           '</div>' +
           '<div class="kaji-row">' +
             '<div class="kaji-panel">' +
-              '<div class="kaji-section-title">' + (s.shapeLocked ? '確定済みの形' : '作るもののマス目を選択（2×4）') + '</div>' +
-              this._renderGrid({ clickAction: s.shapeLocked ? null : 'toggleCell', selectMode: !s.shapeLocked }) +
+              '<div class="kaji-section-title">' + (s.shapeLocked ? '確定済みの形' : '成功ゾーン設定') + '</div>' +
+              '<div class="kaji-grid-shell">' + this._renderGrid({ clickAction: s.shapeLocked ? null : 'toggleCell', selectMode: !s.shapeLocked }) + '</div>' +
               '<div style="margin-top:14px;display:flex;gap:10px;">' +
                 (!s.shapeLocked
                   ? ('<button class="kaji-btn primary" data-action="lockShape"' + (includedCount === 0 ? ' disabled' : '') + '>この形で確定（' + includedCount + 'マス）</button>')
@@ -1177,11 +1185,11 @@
           '<div class="kaji-panel" style="position:relative;">' +
             '<div class="kaji-section-title">グリッド</div>' +
             '<div style="position:relative;display:inline-block;">' +
-              this._renderGrid({ clickAction: 'autoCell', previewIds: previewIds }) +
+              '<div class="kaji-grid-shell">' + this._renderGrid({ clickAction: 'autoCell', previewIds: previewIds }) + '</div>' +
               this._renderTempFx() +
               this._renderCritBanner() +
             '</div>' +
-            '<div style="margin-top:12px;display:flex;gap:16px;font-size:13px;">' +
+            '<div style="margin-top:12px;display:flex;flex-direction:column;gap:6px;font-size:12px;">' +
               '<div>温度: <b style="color:#d97b3f;">' + s.temp + '℃</b></div>' +
               '<div>集中力: <b style="color:#8fa3ad;">' + s.conc + ' / ' + this._maxConc() + '</b></div>' +
             '</div>' +
@@ -1196,9 +1204,9 @@
             this._renderFinalGrade() +
             this._renderMiniLog() +
           '</div>' +
-          '<div class="kaji-panel" style="min-width:260px;">' +
+          '<div class="kaji-panel" style="min-width:140px;flex:0 1 220px;padding:12px 12px 12px 12px;">' +
             '<div class="kaji-section-title">特技を選択</div>' +
-            '<div id="kaji-skill-list-auto" style="max-height:260px;overflow-y:auto;">' + this._renderSkillList('auto') + '</div>' +
+            '<div id="kaji-skill-list-auto" style="max-height:220px;overflow-y:auto;">' + this._renderSkillList('auto') + '</div>' +
             this._renderCandidatePreview('auto') +
           '</div>' +
         '</div>'
@@ -1258,11 +1266,11 @@
           '<div class="kaji-panel" style="position:relative;">' +
             '<div class="kaji-section-title">グリッド（実際にゲームで出た技を選び、結果を入力）</div>' +
             '<div style="position:relative;display:inline-block;">' +
-              this._renderGrid({ clickAction: 'recordCell', previewIds: allPreview }) +
+              '<div class="kaji-grid-shell">' + this._renderGrid({ clickAction: 'recordCell', previewIds: allPreview }) + '</div>' +
               this._renderTempFx() +
               this._renderCritBanner() +
             '</div>' +
-            '<div style="margin-top:12px;display:flex;gap:16px;font-size:13px;">' +
+            '<div style="margin-top:12px;display:flex;flex-direction:column;gap:6px;font-size:12px;">' +
               '<div>温度: <b style="color:#d97b3f;">' + s.temp + '℃</b>（技の使用で自動進行）</div>' +
               '<div>集中力: <b style="color:#8fa3ad;">' + s.conc + ' / ' + this._maxConc() + '</b></div>' +
             '</div>' +
@@ -1275,7 +1283,7 @@
             this._renderFinalGrade() +
             this._renderMiniLog() +
           '</div>' +
-          '<div class="kaji-panel" style="min-width:300px;">' + rightPanel + '</div>' +
+          '<div class="kaji-panel" style="min-width:320px;flex:0 1 320px;padding:12px 12px 12px 12px;">' + rightPanel + '</div>' +
         '</div>'
       );
     },
