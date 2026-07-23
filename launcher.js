@@ -1,22 +1,421 @@
-// ==========ツールランチャー（改造版）=========
-// ========== バージョン管理 ==========
-const APP_VERSION = '3.3.3β';
-
-// バージョン情報をグローバルに公開（HTML側と整合性チェック用）
+// ========== DQXTools ランチャー ==========
+const APP_VERSION = '1.1.5s';
 window.LAUNCHER_VERSION = APP_VERSION;
-// ランチャー読み込み完了を通知
+
+// ランチャー読み込み完了を通知（index.html 側が受信してバージョン確認を行う）
 window.dispatchEvent(new Event('launcher-ready'));
 
-function checkVersionUpdate() {
-    const storedVersion = localStorage.getItem('dqx_app_version');
-    if (storedVersion !== APP_VERSION) {
-        if (storedVersion) {
-            alert(`アップデートされました！\n\n${storedVersion} → ${APP_VERSION}\n新機能・修正が含まれています。`);
-        } else {
-            alert(`ようこそ！\n\nDQXツール ver.${APP_VERSION}`);
-        }
-        localStorage.setItem('dqx_app_version', APP_VERSION);
+// ========== JST 日付キー（6時リセット） ==========
+function dqxGetJSTDateKey() {
+    const now = new Date();
+    const jst = new Date(now.getTime() + (now.getTimezoneOffset() + 540) * 60000);
+    if (jst.getHours() < 6) jst.setDate(jst.getDate() - 1);
+    return `${jst.getFullYear()}-${jst.getMonth() + 1}-${jst.getDate()}`;
+}
+
+// このタブ・セッションを開いた（または最後にチェックした）時点のJST日付キー。
+// PWAをスタンドアロンで開きっぱなしにしたまま6時を跨いだ場合、
+// 起動時1回きりのチェックだけでは日課リセットや各種スナップショットが
+// 更新されないままになる。ツール遷移のたびに軽量に再評価し、
+// 日付が変わっていたらキャッシュクリア込みで強制的に再読み込みする。
+const STORAGE_KEYS = Object.freeze({
+    APP_VERSION: 'dqx_app_version',
+    SIDEBAR_VISIBLE: 'dqx_sidebar_visible',
+    DARK_MODE: 'darkMode',
+    CARD_ORDER: 'dqx_card_order',
+    VISIBLE_TOOLS: 'dqx_visible_tools',
+    TEST_TOKEN: 'dqx_test_token',
+    SESSION_DATE_KEY: 'dqx_session_date_key',
+    RELOAD_COUNT: 'dqx_reload_count',
+    MANIFEST_VERSION: 'dqx_manifest_version',
+    KNOWN_TOOL_IDS: 'dqx_known_tool_ids',
+    DEV_MODE: 'dqx_dev_mode',
+    BG_TOOL_SNAPS: 'dqx_bg_tool_snaps',
+    BG_CHECKER_SNAP: 'dqx_bg_checker_snap',
+    BG_CHECKER_ACTIVE_IDS: 'dqx_bg_checker_active_ids',
+    BG_FIXED_RESET_NOTIFIED_DATE: 'dqx_bg_fixed_reset_notified_date',
+    BG_CHECK_DATE: 'dqx_bg_check_date',
+    BG_BADGES: 'dqx_bg_badges',
+    EXP_SESSION: 'dqx_expm_session',
+    EXP_ACTIVE: 'dqx_expm_active',
+    LAP_NOTIFY: 'dqx_lap_notify'
+});
+const SESSION_DATE_KEY = STORAGE_KEYS.SESSION_DATE_KEY;
+(function initSessionDateKey() {
+    if (!sessionStorage.getItem(SESSION_DATE_KEY)) {
+        sessionStorage.setItem(SESSION_DATE_KEY, dqxGetJSTDateKey());
     }
+})();
+
+function dqxCheckDateRollover() {
+    const nowKey  = dqxGetJSTDateKey();
+    const seenKey = sessionStorage.getItem(SESSION_DATE_KEY);
+    if (seenKey && seenKey !== nowKey) {
+        window.dqxShowToast?.(
+            '日付が変わりました（6時リセット）。最新の状態にするため再読み込みします。',
+            { duration: 2500 }
+        );
+        sessionStorage.setItem(SESSION_DATE_KEY, nowKey);
+        setTimeout(() => {
+            if (typeof window.clearDqxCachesAndReload === 'function') {
+                window.clearDqxCachesAndReload();
+            } else {
+                location.reload();
+            }
+        }, 2600);
+        return true;
+    }
+    sessionStorage.setItem(SESSION_DATE_KEY, nowKey);
+    return false;
+}
+
+// ========== HTMLエスケープ ==========
+// tools-manifest.json / release-notes.json 由来の文字列を innerHTML に差し込む箇所で使用。
+// 現状は自リポジトリ管理の同一オリジンJSONのみが対象だが、
+// checker.js 側（innerText徹底）と防御水準を揃えるため一貫してエスケープする。
+function dqxEscapeHtml(str) {
+    return String(str ?? '').replace(/[&<>"']/g, (ch) => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[ch]));
+}
+// tool.name / tool.desc は改行目的で意図的に <br> を含む値がある
+// （例: "傭兵ログトラッカー<br>旧ver"）。単純に dqxEscapeHtml すると
+// <br> まで文字列として表示されてしまうため、<br> だけは残しつつ
+// それ以外はエスケープする。
+function dqxEscapeHtmlKeepBr(str) {
+    return String(str ?? '')
+        .split(/<br\s*\/?>/i)
+        .map(dqxEscapeHtml)
+        .join('<br>');
+}
+
+function dqxAppendEscapedTextWithBr(container, value) {
+    const parts = String(value ?? '').split(/<br\s*\/?\>/i);
+    parts.forEach((part, index) => {
+        if (index > 0) {
+            container.appendChild(document.createElement('br'));
+        }
+        container.appendChild(document.createTextNode(part));
+    });
+}
+
+// ========== ローディング画像（起動時スプラッシュ／ツール切り替え時 共通） ==========
+const DQX_LOADING_IMAGES = [
+    './images/dqx_loading.jpg',
+    './images/dqx_loading2.jpg',
+    './images/dqx_loading3.jpg',
+    './images/dqx_loading4.jpg',
+    './images/dqx_loading5.jpg',
+];
+function dqxRandomLoadingImage() {
+    return DQX_LOADING_IMAGES[Math.floor(Math.random() * DQX_LOADING_IMAGES.length)];
+}
+
+// ========== バックグラウンドコンテンツチェック ==========
+// SW キャッシュ経由でツール JS を取得し前回スナップショットと差分比較。
+// オンライン・オフライン問わず動作（SW がキャッシュを持っている限り fetch 成功）。
+window.DQX_CARD_BADGES = {};
+window.DQX_BG_CHECK_PROMISE = (function() {
+
+    const TOOL_FILES = [
+        { id: 'Checker',  url: './tools/checker.js'          },
+        { id: 'exp-m',    url: './tools/expmercenary.js'     },
+        { id: 'versions', url: './tools/version_selector.js' },
+        { id: 'help',     url: './tools/help.js'             },
+        { id: 'settings', url: './tools/settings.js'         },
+        { id: 'kaji',     url: './tools/kaji.js'             },
+        { id: 'install',  url: './tools/install.js'          },
+    ];
+
+    const CHECKER_EVENTS_URL = 'https://raw.githubusercontent.com/yuffy-1111/dqx-event-data/main/checker.json';
+    const KEY_TOOL_SNAP    = 'dqx_bg_tool_snaps';
+    const KEY_CHECKER_SNAP = 'dqx_bg_checker_snap';
+    const KEY_CHECKER_ACTIVE_IDS = 'dqx_bg_checker_active_ids';
+    const KEY_FIXED_RESET_NOTIFIED_DATE = 'dqx_bg_fixed_reset_notified_date';
+
+    // ========== 固定周期タスクのリセット境界チェック ==========
+    // checker.js 内の getLastResetDate と同じロジックをここに複製する。
+    // checker.js はチェッカーツールを開いたときにしか読み込まれないため、
+    // 起動時のバックグラウンドバッジチェックからは直接呼び出せない。
+    // 週課・パニガルム・ロスター・たそがれ・レモン・邪神・月課・石灰の
+    // いずれかが「今日」リセット境界を迎えている場合、日課以外の更新として
+    // オレンジバッジ対象にする（checker.json 側のイベント変化とは別枠）。
+    const RESET_HOUR = 6;
+    const FIXED_NONDAILY_TASKS = ['weekly', 'pani', 'roster', 'tasogare', 'lemon', 'jashin', 'monthly', 'sekkai'];
+
+    function dqxGetEffectiveDate(date) {
+        const d = new Date(date);
+        if (d.getHours() < RESET_HOUR) d.setDate(d.getDate() - 1);
+        d.setHours(RESET_HOUR, 0, 0, 0);
+        return d;
+    }
+
+    function dqxGetLastFixedResetDate(taskId, targetDate) {
+        const target = dqxGetEffectiveDate(targetDate);
+        const year   = target.getFullYear();
+        const month  = target.getMonth();
+        const day    = target.getDate();
+
+        switch (taskId) {
+            case 'weekly': {
+                const base  = new Date(2026, 3, 12, 6, 0, 0);
+                const hours = (target - base) / (1000 * 60 * 60);
+                return new Date(base.getTime() + Math.floor(hours / 168) * 168 * 60 * 60 * 1000);
+            }
+            case 'pani': {
+                const base  = new Date(2026, 3, 12, 6, 0, 0);
+                const hours = (target - base) / (1000 * 60 * 60);
+                return new Date(base.getTime() + Math.floor(hours / 72) * 72 * 60 * 60 * 1000);
+            }
+            case 'roster':
+            case 'tasogare':
+            case 'lemon':
+                return day >= 15
+                    ? new Date(year, month, 15, 6, 0, 0)
+                    : new Date(year, month, 1, 6, 0, 0);
+            case 'jashin': {
+                if (day >= 25) return new Date(year, month, 25, 6, 0, 0);
+                if (day >= 10) return new Date(year, month, 10, 6, 0, 0);
+                const prevMonthEnd = new Date(year, month, 0);
+                return new Date(prevMonthEnd.getFullYear(), prevMonthEnd.getMonth(), 25, 6, 0, 0);
+            }
+            case 'monthly':
+                return new Date(year, month, 1, 6, 0, 0);
+            case 'sekkai': {
+                if (day >= 10) return new Date(year, month, 10, 6, 0, 0);
+                const prevMonthEnd = new Date(year, month, 0);
+                return new Date(prevMonthEnd.getFullYear(), prevMonthEnd.getMonth(), 10, 6, 0, 0);
+            }
+            default:
+                return target;
+        }
+    }
+
+    /** 固定周期タスクのいずれかが「今日」リセット境界を迎えているか */
+    function dqxHasFixedTaskResetToday(now) {
+        const todayEffective = dqxGetEffectiveDate(now).getTime();
+        return FIXED_NONDAILY_TASKS.some(
+            (id) => dqxGetLastFixedResetDate(id, now).getTime() === todayEffective
+        );
+    }
+    const KEY_CHECK_DATE   = 'dqx_bg_check_date';
+    const KEY_BADGES       = 'dqx_bg_badges';
+
+    function quickHash(text) {
+        const tail = text.slice(-256);
+        return text.length + ':' + tail;
+    }
+
+    function loadToolSnaps() {
+        try { return JSON.parse(localStorage.getItem(KEY_TOOL_SNAP) || '{}'); }
+        catch(e) { return {}; }
+    }
+    function saveToolSnaps(snaps) {
+        try { localStorage.setItem(KEY_TOOL_SNAP, JSON.stringify(snaps)); } catch(e) {}
+    }
+
+    async function runChecks() {
+        // 以前は「1日1回」に制限していたが、起動時スプラッシュを毎回表示する
+        // 仕様に合わせ、こちらも毎回の起動時にチェックするよう変更。
+        // （同日中に内容が更新された場合でもバッジに反映されるようにするため）
+        const today = dqxGetJSTDateKey();
+
+        const prevSnaps  = loadToolSnaps();
+        const newSnaps   = {};
+        const badges     = {};
+        const isFirstRun = Object.keys(prevSnaps).length === 0;
+
+        await Promise.all(TOOL_FILES.map(async ({ id, url }) => {
+            try {
+                const res = await fetch(url, { cache: 'default' });
+                if (!res.ok) return;
+                const text = await res.text();
+                const hash = quickHash(text);
+                newSnaps[id] = hash;
+                if (!isFirstRun && prevSnaps[id] && prevSnaps[id] !== hash) {
+                    if (id !== 'install') badges[id] = 'yellow';
+                }
+            } catch(e) {}
+        }));
+
+        // ③ 固定周期タスク（週課・パニガルム・ロスター・たそがれ・レモン・邪神・
+        // 月課・石灰）のいずれかが「今日」リセット境界を迎えているか。
+        // これは checker.json のフェッチとは無関係にローカルな日付計算のみで
+        // 判定できるため、オフラインでも機能する。「6時基準で毎日初回に」
+        // 判定し、同じ日に既に通知済みなら再度は立てない。
+        const now      = new Date();
+        const todayKey = dqxGetJSTDateKey();
+        const fixedResetToday    = dqxHasFixedTaskResetToday(now);
+        const prevFixedNotifyKey = localStorage.getItem(KEY_FIXED_RESET_NOTIFIED_DATE);
+        const fixedResetIsNew    = fixedResetToday && prevFixedNotifyKey !== todayKey;
+        if (fixedResetToday) {
+            try { localStorage.setItem(KEY_FIXED_RESET_NOTIFIED_DATE, todayKey); } catch(e) {}
+        }
+
+        try {
+            const res = await fetch(CHECKER_EVENTS_URL, { cache: 'no-store' });
+            if (res.ok) {
+                const data     = await res.json();
+                const snapshot = JSON.stringify(data);
+                const prevSnap = localStorage.getItem(KEY_CHECKER_SNAP);
+
+                // ① checker.json のファイル内容そのものの変更（管理者が追加・編集した場合）
+                let contentChanged = false;
+                if (!isFirstRun && prevSnap && prevSnap !== snapshot) {
+                    try {
+                        const prev = JSON.parse(prevSnap);
+                        const sig = (evts) => (evts || [])
+                            .filter(e => e.resetType !== 'daily')
+                            .map(e => e.id + '|' + e.endDateTime)
+                            .sort().join(',');
+                        contentChanged = sig(prev.events) !== sig(data.events);
+                    } catch(e) { contentChanged = true; }
+                }
+
+                // ② 「今アクティブな日課以外イベント」の集合が前回チェック時から
+                // 変化したか。checker.json 自体が変わらなくても、
+                // startDateTime/endDateTime を迎えて日々アクティブなイベントの
+                // 顔ぶれは変わるため、①だけでは「当日になっても通知が出ない」
+                // イベントが発生していた。こちらも別途検知する。
+                const activeIds = (data.events || [])
+                    .filter(e => e.resetType !== 'daily')
+                    .filter(e => {
+                        const start = new Date(e.startDateTime || e.startDate);
+                        const end   = new Date(e.endDateTime   || e.endDate);
+                        return !isNaN(start) && !isNaN(end) && now >= start && now <= end;
+                    })
+                    .map(e => e.id)
+                    .sort()
+                    .join(',');
+                const prevActiveIds    = localStorage.getItem(KEY_CHECKER_ACTIVE_IDS);
+                const activeSetChanged = (prevActiveIds !== null) && (prevActiveIds !== activeIds);
+
+                if (!isFirstRun && (contentChanged || activeSetChanged || fixedResetIsNew)) {
+                    // ファイル更新検知(yellow)はイベント情報更新(checker-nondaily/green)より優先する
+                    if (badges['Checker'] !== 'yellow') badges['Checker'] = 'checker-nondaily';
+                }
+
+                try {
+                    localStorage.setItem(KEY_CHECKER_SNAP, snapshot);
+                    localStorage.setItem(KEY_CHECKER_ACTIVE_IDS, activeIds);
+                } catch(e) {}
+            } else if (!isFirstRun && fixedResetIsNew) {
+                // checker.json 取得に失敗しても、固定周期タスクのリセットは
+                // ローカル計算のみで判定できるためバッジは立てる
+                // （ファイル更新検知(yellow)はここでも優先する）
+                if (badges['Checker'] !== 'yellow') badges['Checker'] = 'checker-nondaily';
+            }
+        } catch(e) {
+            if (!isFirstRun && fixedResetIsNew) {
+                if (badges['Checker'] !== 'yellow') badges['Checker'] = 'checker-nondaily';
+            }
+        }
+
+        // 前回チェック時点で立っていたバッジのうち、まだ開かれていない（クリアされていない）
+        // ものは維持する。今回の差分で新たに検出したバッジと合成する。
+        try {
+            const prevBadges = JSON.parse(localStorage.getItem(KEY_BADGES) || '{}');
+            Object.assign(window.DQX_CARD_BADGES, prevBadges);
+        } catch(e) {}
+        Object.assign(window.DQX_CARD_BADGES, badges);
+
+        saveToolSnaps(newSnaps);
+        try { localStorage.setItem(KEY_CHECK_DATE, today); } catch(e) {}
+        try { localStorage.setItem(KEY_BADGES, JSON.stringify(window.DQX_CARD_BADGES)); } catch(e) {}
+        return window.DQX_CARD_BADGES;
+    }
+
+    // PWAをバックグラウンドから復帰した際などに、フルリロードなしで
+    // 再実行できるよう公開する（index.html の visibilitychange ハンドラから使用）
+    window.dqxRunBackgroundChecks = runChecks;
+
+    return runChecks();
+})();
+
+// ========== ローディング画面（起動時スプラッシュ） ==========
+// 毎回のアプリ起動時（通常起動・バージョン不一致や6時跨ぎによる強制リロード後の
+// 再起動を含む）に必ず表示する。画像はプリキャッシュ済みなので待ち時間は発生しない。
+(function() {
+    const img = dqxRandomLoadingImage();
+
+    const overlay = document.createElement('div');
+    overlay.id    = 'dqx-loading-overlay';
+    overlay.style.cssText = [
+        'position:fixed;inset:0;z-index:99999;',
+        'display:flex;flex-direction:column;align-items:center;justify-content:center;',
+        'background:#000;transition:opacity 0.6s ease;',
+    ].join('');
+
+    const imgEl = document.createElement('img');
+    imgEl.src   = img;
+    imgEl.style.cssText = 'max-width:100%;max-height:80vh;object-fit:contain;border-radius:8px;';
+    imgEl.alt   = '';
+
+    const label = document.createElement('div');
+    label.textContent   = 'Now Loading\u2026';
+    label.style.cssText = 'color:#aaa;font-size:13px;margin-top:16px;letter-spacing:.1em;';
+
+    overlay.appendChild(imgEl);
+    overlay.appendChild(label);
+
+    if (document.body) {
+        document.body.appendChild(overlay);
+    } else {
+        document.addEventListener('DOMContentLoaded', () => document.body.appendChild(overlay));
+    }
+
+    function closeOverlay() {
+        if (!overlay.parentNode) return;
+        overlay.style.opacity = '0';
+        setTimeout(() => { if (overlay.parentNode) overlay.remove(); }, 650);
+    }
+
+    // バックグラウンドチェック完了 OR 最低2秒のどちらか遅い方で閉じる
+    const minWait = new Promise(r => setTimeout(r, 2000));
+    Promise.all([window.DQX_BG_CHECK_PROMISE.catch(() => {}), minWait])
+        .then(closeOverlay);
+
+    window.dqxCloseLoadingOverlay = closeOverlay;
+})();
+
+
+// ========== リリースノート ==========
+// release-notes.json から非同期で読み込む
+window.DQX_RELEASE_NOTES = [];
+window.DQX_RELEASE_NOTES_PROMISE = fetch('./release-notes.json?v=' + Date.now(), { cache: 'no-store' })
+    .then((r) => r.ok ? r.json() : null)
+    .then((data) => {
+        if (data && Array.isArray(data.releases)) {
+            window.DQX_RELEASE_NOTES = data.releases;
+        }
+        return window.DQX_RELEASE_NOTES;
+    })
+    .catch(() => window.DQX_RELEASE_NOTES);
+
+// ========== renderFn ホワイトリスト ==========
+// tool.renderFn に指定できるグローバルアクセスパターンを制限する。
+// manifest が改ざんされても window.eval 等の危険なプロパティを呼べないようにする。
+const ALLOWED_RENDER_PREFIXES = [
+    'Checker.', 'Expmercenary.', 'VersionSelector.',
+    'Help.', 'Settings.', 'Install.', 'Kaji.'
+];
+function isAllowedRenderFn(renderFn) {
+    return ALLOWED_RENDER_PREFIXES.some((prefix) => renderFn.startsWith(prefix));
+}
+
+function checkVersionUpdate() {
+    const storedVersion = localStorage.getItem(STORAGE_KEYS.APP_VERSION);
+    if (storedVersion && storedVersion !== APP_VERSION) {
+        setTimeout(() => {
+            if (typeof window.dqxShowToast === 'function') {
+                window.dqxShowToast(
+                    `アップデートされました！ ${storedVersion} → ${APP_VERSION}`,
+                    { variant: 'success', duration: 6000 }
+                );
+            }
+        }, 500);
+    }
+    localStorage.setItem(STORAGE_KEYS.APP_VERSION, APP_VERSION);
 }
 
 const DQXTools = {
@@ -36,10 +435,6 @@ const DQXTools = {
         return window.innerWidth <= 768;
     },
 
-    isTabletLandscape: function() {
-        return window.innerWidth > 768 && window.innerWidth < 1024 && window.innerHeight < window.innerWidth;
-    },
-
     init: function(containerId) {
         checkVersionUpdate();
         this.container = document.getElementById(containerId);
@@ -48,29 +443,13 @@ const DQXTools = {
             return;
         }
 
-        // サイドバーの表示状態を復元（デフォルトは表示）
-        const saved = localStorage.getItem('dqx_sidebar_visible');
+        const saved = localStorage.getItem(STORAGE_KEYS.SIDEBAR_VISIBLE);
         this.sidebarVisible = saved !== null ? saved !== 'false' : true;
-        console.log(`[DQXTools] sidebar init: saved=${saved} sidebarVisible=${this.sidebarVisible}`);
-        // body にクラスを付与して CSS で見た目を保持（リロード後の復元用）
         document.body.classList.toggle('sidebar-hidden', !this.sidebarVisible);
 
-        // ========== Pull to Refresh（スワイプ引っ張り再読み込み）禁止 ==========
-        let touchStartY = 0;
-        document.addEventListener('touchstart', (e) => {
-            touchStartY = e.touches[0].clientY;
-        }, { passive: false });
-        document.addEventListener('touchmove', (e) => {
-            const touchY = e.touches[0].clientY;
-            if (touchY > touchStartY && window.scrollY === 0) {
-                e.preventDefault();
-            }
-        }, { passive: false });
-
-        // ========== ストレージキーのクリーンアップ ==========
         this.cleanupStorage();
 
-        this.darkMode = localStorage.getItem('darkMode') === 'dark';
+        this.darkMode = localStorage.getItem(STORAGE_KEYS.DARK_MODE) === 'dark';
         this.applyDarkMode();
         this.showLauncher();
 
@@ -85,11 +464,10 @@ const DQXTools = {
     },
 
     cleanupStorage: function() {
-        const allowedLocalStorageKeys = [
+        const allowedLocal = [
             'dqx_app_version',
             'dqx_card_order',
             'dqx_visible_tools',
-            'dqx_test_token',
             'dqx_dev_mode',
             'darkMode',
             'dqx_craft_last',
@@ -100,33 +478,47 @@ const DQXTools = {
             'dqx_lap_notify',
             'dqx_shopping_cart',
             'dqx_material_prices',
-            'dqx_sidebar_visible'
+            'dqx_sidebar_visible',
+            'dqx_known_tool_ids',
+            'dqx_manifest_version',
+            // バックグラウンドチェック関連
+            'dqx_bg_tool_snaps',
+            'dqx_bg_checker_snap',
+            'dqx_bg_checker_active_ids',
+            'dqx_bg_fixed_reset_notified_date',
+            'dqx_bg_check_date',
+            'dqx_bg_badges',
+            // Kaji シミュレーター用保存データ
+            'dqx_kaji_level',
+            'dqx_kaji_presets_v1',
+            // 傭兵ログトラッカー：クラッシュ復旧用セッション保存
+            'dqx_expm_session',
+            'dqx_expm_active',
         ];
-
         for (let i = localStorage.length - 1; i >= 0; i--) {
             const key = localStorage.key(i);
             if (!key) continue;
-            const isAllowed = allowedLocalStorageKeys.includes(key) || key.startsWith('dqx_check_final10_');
-            if (!isAllowed) {
+            const allowed = allowedLocal.includes(key)
+                || key.startsWith('dqx_check_final10_')
+                || key.startsWith('dqx_limited_checks_v3_');
+            if (!allowed) {
                 try {
                     localStorage.removeItem(key);
-                    console.log(`[Storage Cleanup] localStorage から削除: ${key}`);
                 } catch (e) {
-                    console.warn(`[Storage Cleanup] localStorage の削除に失敗: ${key}`, e);
+                    console.warn('[Storage Cleanup] localStorage の削除に失敗:', key, e);
                 }
             }
         }
 
-        const allowedSessionStorageKeys = ['dqx_reload_count'];
+        const allowedSession = ['dqx_reload_count', 'dqx_test_token', 'dqx_session_date_key'];
         for (let i = sessionStorage.length - 1; i >= 0; i--) {
             const key = sessionStorage.key(i);
             if (!key) continue;
-            if (!allowedSessionStorageKeys.includes(key)) {
+            if (!allowedSession.includes(key)) {
                 try {
                     sessionStorage.removeItem(key);
-                    console.log(`[Storage Cleanup] sessionStorage から削除: ${key}`);
                 } catch (e) {
-                    console.warn(`[Storage Cleanup] sessionStorage の削除に失敗: ${key}`, e);
+                    console.warn('[Storage Cleanup] sessionStorage の削除に失敗:', key, e);
                 }
             }
         }
@@ -135,14 +527,12 @@ const DQXTools = {
     applyDarkMode: function() {
         document.body.classList.toggle('dark-mode', this.darkMode);
         const btn = document.getElementById('global-dark-toggle');
-        if (btn) {
-            btn.textContent = this.darkMode ? '☀️' : '🌙';
-        }
+        if (btn) btn.textContent = this.darkMode ? '☀️' : '🌙';
     },
 
     toggleDarkMode: function() {
         this.darkMode = !this.darkMode;
-        localStorage.setItem('darkMode', this.darkMode ? 'dark' : 'light');
+        localStorage.setItem(STORAGE_KEYS.DARK_MODE, this.darkMode ? 'dark' : 'light');
         this.applyDarkMode();
         if (this.currentTool === null) {
             this.showLauncher();
@@ -153,45 +543,40 @@ const DQXTools = {
 
     toggleSidebar: function() {
         this.sidebarVisible = !this.sidebarVisible;
-        localStorage.setItem('dqx_sidebar_visible', String(this.sidebarVisible));
-        // body クラスを更新して即座に見た目を反映
+        localStorage.setItem(STORAGE_KEYS.SIDEBAR_VISIBLE, String(this.sidebarVisible));
         document.body.classList.toggle('sidebar-hidden', !this.sidebarVisible);
-        console.log(`[DQXTools] toggleSidebar -> sidebarVisible=${this.sidebarVisible}`);
-        // ツールメニューを再描画
-        if (this.currentTool !== null) {
-            this.renderToolMenu();
-        }
+        if (this.currentTool !== null) this.renderToolMenu();
         this.updateContainerPadding();
     },
 
     showLauncher: function() {
-        const savedOrder = localStorage.getItem('dqx_card_order');
-        const order = savedOrder ? JSON.parse(savedOrder) : null;
-        
+        const savedOrder = localStorage.getItem(STORAGE_KEYS.CARD_ORDER);
+        const order      = savedOrder ? JSON.parse(savedOrder) : null;
+
         const hasValidToken = () => {
-            const token = localStorage.getItem('dqx_test_token');
+            const token = sessionStorage.getItem(STORAGE_KEYS.TEST_TOKEN);
             return token && token.length >= 40;
         };
-        
-        // URLパラメータによるフィルタリング: ?show=ToolA,ToolB&includeTest=true
-        let toolEntries = Object.entries(this.tools);
+
+        // hideInMenu かつ testToolConfig を持たないツール（例：アプリの使い方）は
+        // ホーム画面のカード一覧から除外する
+        let toolEntries = Object.entries(this.tools).filter(([, tool]) => {
+            return !(tool.hideInMenu && !tool.testToolConfig);
+        });
+
         try {
-            const params = new URLSearchParams(window.location.search);
+            const params    = new URLSearchParams(window.location.search);
             const showParam = params.get('show');
-            const includeTest = params.get('includeTest') === 'true';
             if (showParam) {
-                const wanted = showParam.split(',').map(s => s.trim()).filter(Boolean);
-                toolEntries = toolEntries.filter(([id, tool]) => wanted.includes(id));
-                console.log('[DQXTools] Filtered launcher view for (param):', wanted, 'includeTest=', includeTest);
+                const wanted = showParam.split(',').map((s) => s.trim()).filter(Boolean);
+                toolEntries  = toolEntries.filter(([id]) => wanted.includes(id));
             } else {
-                // 保存された表示設定があれば優先して適用
-                const stored = localStorage.getItem('dqx_visible_tools');
+                const stored = localStorage.getItem(STORAGE_KEYS.VISIBLE_TOOLS);
                 if (stored) {
                     try {
                         const wanted = JSON.parse(stored);
                         if (Array.isArray(wanted) && wanted.length > 0) {
                             toolEntries = toolEntries.filter(([id]) => wanted.includes(id));
-                            console.log('[DQXTools] Filtered launcher view for (stored):', wanted);
                         }
                     } catch (e) {
                         console.warn('Invalid dqx_visible_tools in localStorage', e);
@@ -201,6 +586,7 @@ const DQXTools = {
         } catch (e) {
             console.warn('Invalid show param', e);
         }
+
         if (order) {
             toolEntries.sort((a, b) => {
                 const aIdx = order.indexOf(a[0]);
@@ -211,349 +597,692 @@ const DQXTools = {
                 return aIdx - bIdx;
             });
         }
-        
+
         const isValidToken = hasValidToken();
-        
-        const cardButtons = toolEntries.map(([id, tool]) => {
-            const icon = tool.icon || '🔧';
-            const name = tool.name;
-            const desc = tool.desc || '';
+        const cardElements = toolEntries.map(([id, tool]) => {
             const isDisabled = tool.requiresToken && !isValidToken;
-            const disabledClass = isDisabled ? 'tool-card-disabled' : '';
-            
-            return `
-                <div class="tool-card ${disabledClass}" data-tool-id="${id}" data-requires-token="${tool.requiresToken || false}">
-                    <div class="tool-card-icon">${icon}</div>
-                    <div class="tool-card-name">${name}</div>
-                    <div class="tool-card-desc">${desc}</div>
-                </div>
-            `;
-        }).join('');
+            const card = document.createElement('div');
+            card.className = `tool-card ${isDisabled ? 'tool-card-disabled' : ''}`;
+            card.dataset.toolId = id;
+            card.dataset.requiresToken = String(tool.requiresToken || false);
 
-        this.container.innerHTML = `
-            <div class="home-container">
-                <div class="home-header">
-                    <h1 class="home-title">🎮 DQXツール</h1>
-                    <div style="display:flex;gap:8px;align-items:center;">
-                        <button id="open-manage-link" class="manage-btn">カード編集</button>
-                        <button id="global-dark-toggle" class="dark-toggle-btn">${this.darkMode ? '☀️' : '🌙'}</button>
-                    </div>
-                </div>
-                <div class="home-grid">
-                    ${cardButtons}
-                </div>
-                <div class="home-footer">
-                    © 2026 yuffy_rre
-                </div>
-            </div>
-        `;
+            const badge = window.DQX_CARD_BADGES && window.DQX_CARD_BADGES[id];
+            if (badge === 'checker-nondaily') {
+                const badgeEl = document.createElement('span');
+                badgeEl.className = 'card-badge card-badge-green';
+                badgeEl.title = 'イベント情報に更新あり（日課以外）';
+                badgeEl.textContent = '●';
+                card.appendChild(badgeEl);
+            } else if (badge) {
+                const badgeEl = document.createElement('span');
+                badgeEl.className = 'card-badge card-badge-yellow';
+                badgeEl.title = 'ツールが更新されました';
+                badgeEl.textContent = '●';
+                card.appendChild(badgeEl);
+            }
 
-        const toggleBtn = document.getElementById('global-dark-toggle');
-        if (toggleBtn) {
-            toggleBtn.onclick = () => this.toggleDarkMode();
+            const icon = document.createElement('div');
+            icon.className = 'tool-card-icon';
+            dqxAppendEscapedTextWithBr(icon, tool.icon || '🔧');
+            card.appendChild(icon);
+
+            const name = document.createElement('div');
+            name.className = 'tool-card-name';
+            dqxAppendEscapedTextWithBr(name, tool.name);
+            card.appendChild(name);
+
+            const desc = document.createElement('div');
+            desc.className = 'tool-card-desc';
+            dqxAppendEscapedTextWithBr(desc, tool.desc || '');
+            card.appendChild(desc);
+
+            return card;
+        });
+
+        const homeContainer = document.createElement('div');
+        homeContainer.className = 'home-container';
+
+        const homeHeader = document.createElement('div');
+        homeHeader.className = 'home-header';
+
+        const homeTitle = document.createElement('h1');
+        homeTitle.className = 'home-title';
+        homeTitle.textContent = 'yuffy tools';
+        homeHeader.appendChild(homeTitle);
+
+        const headerActions = document.createElement('div');
+        headerActions.className = 'home-header-actions';
+
+        const manageBtn = document.createElement('button');
+        manageBtn.id = 'open-manage-link';
+        manageBtn.className = 'manage-btn';
+        manageBtn.type = 'button';
+        manageBtn.textContent = 'カード編集';
+        headerActions.appendChild(manageBtn);
+
+        const darkToggle = document.createElement('button');
+        darkToggle.id = 'global-dark-toggle';
+        darkToggle.className = 'dark-toggle-btn';
+        darkToggle.type = 'button';
+        darkToggle.textContent = this.darkMode ? '☀️' : '🌙';
+        headerActions.appendChild(darkToggle);
+
+        const netStatus = document.createElement('div');
+        netStatus.id = 'dqx-net-status';
+        netStatus.className = 'dqx-net-dot dqx-net-checking';
+        netStatus.setAttribute('aria-label', 'バージョン状態');
+        netStatus.textContent = '⏳';
+        headerActions.appendChild(netStatus);
+
+        const netPopover = document.createElement('div');
+        netPopover.id = 'dqx-net-popover';
+        headerActions.appendChild(netPopover);
+
+        homeHeader.appendChild(headerActions);
+
+        const homeGrid = document.createElement('div');
+        homeGrid.className = 'home-grid';
+        cardElements.forEach((card) => homeGrid.appendChild(card));
+
+        const homeFooter = document.createElement('div');
+        homeFooter.className = 'home-footer';
+
+        const footerRow = document.createElement('div');
+        footerRow.className = 'footer-row';
+
+        const footerLeft = document.createElement('div');
+        footerLeft.className = 'footer-row-left';
+
+        const installLink = document.createElement('a');
+        installLink.href = '#';
+        installLink.id = 'footer-install-link';
+        installLink.className = 'footer-install-link';
+        installLink.textContent = '📲 アプリとして使う方法';
+        footerLeft.appendChild(installLink);
+
+        const releaseNotesBtn = document.createElement('button');
+        releaseNotesBtn.id = 'footer-releasenotes-btn';
+        releaseNotesBtn.className = 'footer-text-btn';
+        releaseNotesBtn.type = 'button';
+        releaseNotesBtn.textContent = '📋 リリースノート';
+        footerLeft.appendChild(releaseNotesBtn);
+
+        const reloadBtn = document.createElement('button');
+        reloadBtn.id = 'footer-reload-btn';
+        reloadBtn.className = 'footer-reload-btn';
+        reloadBtn.type = 'button';
+        reloadBtn.title = '設定の最新版を確認して更新';
+        reloadBtn.textContent = '↻';
+
+        footerRow.appendChild(footerLeft);
+        footerRow.appendChild(reloadBtn);
+
+        const footerCopyright = document.createElement('div');
+        footerCopyright.className = 'footer-copyright';
+        footerCopyright.innerHTML = 'このページで利用している株式会社スクウェア・エニックスを代表とする共同著作者が権利を所有する画像の転載・配布は禁止いたします。<br>&copy; ARMOR PROJECT/BIRD STUDIO/SQUARE ENIX All Rights Reserved.';
+
+        homeFooter.appendChild(footerRow);
+        homeFooter.appendChild(footerCopyright);
+
+        homeContainer.appendChild(homeHeader);
+        homeContainer.appendChild(homeGrid);
+        homeContainer.appendChild(homeFooter);
+        this.container.replaceChildren(homeContainer);
+
+        document.getElementById('global-dark-toggle').onclick = () => this.toggleDarkMode();
+
+        // ネットインジケーター
+        const netDot = document.getElementById('dqx-net-status');
+        const netPopoverEl = document.getElementById('dqx-net-popover');
+        if (netDot && netPopoverEl) {
+            if (window.dqxUpdateNetIndicator) window.dqxUpdateNetIndicator();
+            netDot.onclick = (e) => {
+                e.stopPropagation();
+                netPopoverEl.classList.toggle('show');
+            };
+            if (this._netPopoverAbort) this._netPopoverAbort.abort();
+            this._netPopoverAbort = new AbortController();
+            document.addEventListener('click', (e) => {
+                if (!netDot.contains(e.target) && !netPopoverEl.contains(e.target)) {
+                    netPopoverEl.classList.remove('show');
+                }
+            }, { signal: this._netPopoverAbort.signal });
         }
 
-        document.querySelectorAll('.tool-card').forEach(card => {
+        // フッターのインストールリンク
+        document.getElementById('footer-install-link').onclick = (e) => {
+            e.preventDefault();
+            if (this.tools && this.tools['install']) {
+                this.loadTool('install');
+            } else if (window.DQX_MANIFEST_FETCH_PROMISE) {
+                window.DQX_MANIFEST_FETCH_PROMISE.then(() => {
+                    if (this.tools && this.tools['install']) this.loadTool('install');
+                });
+            }
+        };
+
+        // フッターの更新ボタン
+        document.getElementById('footer-reload-btn').onclick = async () => {
+            if (!navigator.onLine) {
+                window.dqxShowToast('オフラインのため更新を確認できません。オンライン環境で再度お試しください。');
+                return;
+            }
+            await window.dqxCheckVersion();
+            if (window.DQX_NET_STATE === 'update') {
+                window.dqxShowToast('更新があります。ページを再読み込みします。');
+                window.location.reload(true);
+            } else if (window.DQX_NET_STATE === 'latest') {
+                window.dqxShowToast('現在の読み込みキャッシュは最新です。');
+            } else {
+                window.dqxShowToast('最新状態を確認できませんでした。');
+            }
+        };
+
+        // リリースノートボタン
+        document.getElementById('footer-releasenotes-btn').onclick = () => this.openReleaseNotesModal();
+
+        // カードクリック
+        this.container.querySelectorAll('.tool-card').forEach((card) => {
             card.onclick = () => {
-                const toolId = card.dataset.toolId;
+                const toolId       = card.dataset.toolId;
                 const requiresToken = card.dataset.requiresToken === 'true';
-                const isValidTokenNow = hasValidToken();
-                
-                if (requiresToken && !isValidTokenNow) {
-                    const token = prompt('GitHub APIトークンを入力してください（開発者専用）');
-                    if (token && token.length >= 40) {
-                        localStorage.setItem('dqx_test_token', token);
-                        this.showLauncher();
-                    }
+                if (requiresToken && !hasValidToken()) {
+                    this._promptToken();
                     return;
                 }
                 this.loadTool(toolId);
             };
         });
 
-        // 個別カードの別タブリンク機能は削除（手動URLまたは管理画面で制御してください）
+        document.getElementById('open-manage-link').onclick = () => this.openManageDialog();
 
-        // フィルタ作成機能は廃止（表示管理のみで制御）
-
-        // 表示管理ボタン
-        const manageBtn = document.getElementById('open-manage-link');
-        if (manageBtn) manageBtn.onclick = () => this.openManageDialog();
-        
-        const homeGrid = this.container.querySelector('.home-grid');
-        if (homeGrid && typeof Sortable !== 'undefined') {
-            if (this.sortableInstance) {
-                this.sortableInstance.destroy();
-            }
-            this.sortableInstance = new Sortable(homeGrid, {
+        const homeGridEl = this.container.querySelector('.home-grid');
+        if (homeGridEl && typeof Sortable !== 'undefined') {
+            if (this.sortableInstance) this.sortableInstance.destroy();
+            this.sortableInstance = new Sortable(homeGridEl, {
                 animation: 150,
                 onEnd: () => {
-                    const newOrder = [...homeGrid.children].map(card => card.dataset.toolId);
-                    localStorage.setItem('dqx_card_order', JSON.stringify(newOrder));
+                    const newOrder = [...homeGridEl.children].map((card) => card.dataset.toolId);
+                    localStorage.setItem(STORAGE_KEYS.CARD_ORDER, JSON.stringify(newOrder));
                 }
             });
         }
     },
 
-        openManageDialog: function() {
-            // モーダル要素作成（簡素版：既存ツールの表示/非表示トグルのみ）
-            const existing = document.getElementById('manage-modal');
-            if (existing) return;
+    // トークン入力を専用UIで行う（prompt() は PWA standalone で動作しない環境がある）
+    _promptToken: function() {
+        const existing = document.getElementById('dqx-token-modal');
+        if (existing) return;
 
-            const modal = document.createElement('div');
-            modal.id = 'manage-modal';
-            modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;z-index:30000;';
+        const modal = document.createElement('div');
+        modal.id    = 'dqx-token-modal';
+        modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;z-index:30000;';
 
-            const dialog = document.createElement('div');
-            dialog.style.cssText = 'background:#fff;color:#000;padding:20px;border-radius:8px;width:90%;max-width:720px;max-height:80vh;overflow:auto;';
-            dialog.innerHTML = `
-                <h3>カード編集</h3>
-                <p>ホームに表示するツールの表示/非表示を切り替えます。変更は即時保存されます。</p>
-                <div id="manage-list" style="margin-bottom:12px;"></div>
-                <div style="display:flex;gap:8px;justify-content:flex-end;"><button id="manage-save">閉じる</button></div>
-            `;
+        const dialog = document.createElement('div');
+        dialog.style.cssText = 'background:#fff;padding:24px;border-radius:12px;width:90%;max-width:400px;';
 
-            modal.appendChild(dialog);
-            document.body.appendChild(modal);
+        const title = document.createElement('h3');
+        title.style.cssText = 'margin:0 0 12px;color:#0066cc;';
+        title.textContent = '🔑 開発者認証';
+        dialog.appendChild(title);
 
-            const listContainer = dialog.querySelector('#manage-list');
+        const description = document.createElement('p');
+        description.style.cssText = 'font-size:13px;color:#555;margin:0 0 12px;';
+        description.textContent = 'GitHub APIトークンを入力してください（開発者専用）';
+        dialog.appendChild(description);
 
-            const loadVisible = () => {
-                const stored = localStorage.getItem('dqx_visible_tools');
-                try { return stored ? JSON.parse(stored) : null; } catch (e) { return null; }
-            };
-            let visible = loadVisible();
+        const input = document.createElement('input');
+        input.id = 'dqx-token-input';
+        input.type = 'password';
+        input.style.cssText = 'width:100%;padding:10px;border:1px solid #ccc;border-radius:8px;font-size:14px;box-sizing:border-box;';
+        input.placeholder = 'ghp_...';
+        dialog.appendChild(input);
 
-            const allIds = Object.keys(this.tools).sort();
+        const actions = document.createElement('div');
+        actions.style.cssText = 'display:flex;gap:8px;margin-top:12px;justify-content:flex-end;';
 
-            const renderList = () => {
-                listContainer.innerHTML = '';
-                allIds.forEach(id => {
-                    const row = document.createElement('div');
-                    row.style.cssText = 'display:flex;gap:8px;align-items:center;padding:6px;border-bottom:1px solid #eee;';
-                    const chk = document.createElement('input');
-                    chk.type = 'checkbox';
-                    // デフォルトはチェックあり（表示）
-                    chk.checked = visible ? visible.includes(id) : true;
-                    const label = document.createElement('div');
-                    label.textContent = id + (this.tools[id] ? ` — ${this.tools[id].name}` : '');
-                    label.style.flex = '1';
-                    chk.onchange = () => {
-                        if (!visible) visible = allIds.slice();
-                        if (chk.checked) {
-                            if (!visible.includes(id)) visible.push(id);
-                        } else {
-                            visible = visible.filter(x => x !== id);
-                        }
-                        // 変更は即時保存
-                        if (visible && visible.length === allIds.length) {
-                            localStorage.removeItem('dqx_visible_tools');
-                        } else {
-                            localStorage.setItem('dqx_visible_tools', JSON.stringify(visible || []));
-                        }
-                    };
-                    row.appendChild(chk);
-                    row.appendChild(label);
-                    listContainer.appendChild(row);
-                });
-            };
+        const cancelBtn = document.createElement('button');
+        cancelBtn.id = 'dqx-token-cancel';
+        cancelBtn.style.cssText = 'padding:8px 16px;border:1px solid #ccc;border-radius:8px;background:#fff;cursor:pointer;';
+        cancelBtn.textContent = 'キャンセル';
+        actions.appendChild(cancelBtn);
 
-            renderList();
+        const okBtn = document.createElement('button');
+        okBtn.id = 'dqx-token-ok';
+        okBtn.style.cssText = 'padding:8px 16px;background:#0066cc;color:#fff;border:none;border-radius:8px;cursor:pointer;';
+        okBtn.textContent = '確認';
+        actions.appendChild(okBtn);
 
-            dialog.querySelector('#manage-save').onclick = () => {
-                modal.remove();
+        dialog.appendChild(actions);
+        modal.appendChild(dialog);
+        document.body.appendChild(modal);
+
+        const close = () => modal.remove();
+        cancelBtn.onclick = close;
+        okBtn.onclick = () => {
+            const token = input.value.trim();
+            if (token && token.length >= 40) {
+                sessionStorage.setItem(STORAGE_KEYS.TEST_TOKEN, token);
+                close();
                 this.showLauncher();
-            };
-        },
+            } else {
+                input.style.borderColor = '#dc3545';
+            }
+        };
+        input.addEventListener('keydown', (e) => { if (e.key === 'Enter') okBtn.click(); });
+        input.focus();
+    },
+
+    openManageDialog: function() {
+        if (document.getElementById('manage-modal')) return;
+
+        const modal  = document.createElement('div');
+        modal.id     = 'manage-modal';
+        modal.className = 'manage-modal';
+
+        const dialog = document.createElement('div');
+        dialog.className = 'manage-dialog';
+
+        const title = document.createElement('h3');
+        title.textContent = 'カード編集';
+        dialog.appendChild(title);
+
+        const description = document.createElement('p');
+        description.textContent = 'ホームに表示するツールの表示/非表示を切り替えます。変更は即時保存されます。';
+        dialog.appendChild(description);
+
+        const listContainer = document.createElement('div');
+        listContainer.id = 'manage-list';
+        listContainer.className = 'manage-list';
+        dialog.appendChild(listContainer);
+
+        const actions = document.createElement('div');
+        actions.className = 'manage-actions';
+
+        const saveBtn = document.createElement('button');
+        saveBtn.id = 'manage-save';
+        saveBtn.className = 'manage-save-btn';
+        saveBtn.type = 'button';
+        saveBtn.textContent = '閉じる';
+        actions.appendChild(saveBtn);
+        dialog.appendChild(actions);
+
+        modal.appendChild(dialog);
+        document.body.appendChild(modal);
+
+        const loadVisible = () => {
+            const stored = localStorage.getItem('dqx_visible_tools');
+            try { return stored ? JSON.parse(stored) : null; } catch (e) { return null; }
+        };
+        let visible = loadVisible();
+        // hideInMenu=true かつ requiresToken=false のもの（installなど）は除外
+        // テストツール（requiresToken=true）はカードに表示されるので残す
+        const allIds = Object.keys(this.tools).filter((id) => {
+            const t = this.tools[id];
+            return !(t.hideInMenu && !t.requiresToken);
+        }).sort();
+
+        const renderList = () => {
+            listContainer.innerHTML = '';
+            allIds.forEach((id) => {
+                const row = document.createElement('div');
+                row.className = 'manage-row';
+
+                const chk = document.createElement('input');
+                chk.type    = 'checkbox';
+                chk.checked = visible ? visible.includes(id) : true;
+
+                const label = document.createElement('div');
+                label.className = 'manage-label';
+                label.textContent = id + (this.tools[id] ? ` — ${this.tools[id].name}` : '');
+
+                chk.onchange = () => {
+                    if (chk.checked) {
+                        if (!visible) visible = allIds.slice();
+                        if (!visible.includes(id)) visible.push(id);
+                    } else {
+                        const checkedCount = listContainer.querySelectorAll('input[type="checkbox"]:checked').length;
+                        if (checkedCount === 0) {
+                            chk.checked = true;
+                            if (window.dqxShowToast) {
+                                window.dqxShowToast('最低1つのツールを表示する必要があります。', { duration: 3000 });
+                            }
+                            return;
+                        }
+                        visible = (visible || allIds.slice()).filter((x) => x !== id);
+                    }
+                    if (visible && visible.length === allIds.length) {
+                        localStorage.removeItem(STORAGE_KEYS.VISIBLE_TOOLS);
+                    } else {
+                        localStorage.setItem(STORAGE_KEYS.VISIBLE_TOOLS, JSON.stringify(visible || []));
+                    }
+                };
+
+                row.appendChild(chk);
+                row.appendChild(label);
+                listContainer.appendChild(row);
+            });
+        };
+
+        renderList();
+        saveBtn.onclick = () => {
+            modal.remove();
+            this.showLauncher();
+        };
+    },
+
+    openReleaseNotesModal: function() {
+        if (document.getElementById('dqx-releasenotes-modal')) return;
+
+        const open = (notes) => {
+            const modal = document.createElement('div');
+            modal.id        = 'dqx-releasenotes-modal';
+            modal.className = 'rn-modal-overlay';
+
+            const sheet = document.createElement('div');
+            sheet.className = 'rn-sheet';
+
+            const header = document.createElement('div');
+            header.className = 'rn-sheet-header';
+
+            const title = document.createElement('span');
+            title.className   = 'rn-sheet-title';
+            title.textContent = '📋 リリースノート';
+
+            const closeBtn = document.createElement('button');
+            closeBtn.className   = 'rn-close-btn';
+            closeBtn.textContent = '✕';
+            closeBtn.setAttribute('aria-label', '閉じる');
+            closeBtn.onclick = () => modal.remove();
+
+            header.appendChild(title);
+            header.appendChild(closeBtn);
+
+            const body = document.createElement('div');
+            body.className = 'rn-sheet-body';
+
+            const entries = Array.isArray(notes) ? notes : [];
+            if (entries.length === 0) {
+                const empty = document.createElement('p');
+                empty.className = 'rn-empty';
+                empty.textContent = 'リリースノートはありません。';
+                body.appendChild(empty);
+            } else {
+                entries.forEach((entry) => {
+                    const entryEl = document.createElement('div');
+                    entryEl.className = 'rn-entry';
+
+                    const entryHeader = document.createElement('div');
+                    entryHeader.className = 'rn-header';
+
+                    const version = document.createElement('span');
+                    version.className = 'rn-version';
+                    version.textContent = `v${entry.version}`;
+                    entryHeader.appendChild(version);
+
+                    const date = document.createElement('span');
+                    date.className = 'rn-date';
+                    date.textContent = entry.date;
+                    entryHeader.appendChild(date);
+
+                    const list = document.createElement('ul');
+                    list.className = 'rn-list';
+                    (entry.notes || []).forEach((note) => {
+                        const item = document.createElement('li');
+                        item.textContent = note;
+                        list.appendChild(item);
+                    });
+
+                    entryEl.appendChild(entryHeader);
+                    entryEl.appendChild(list);
+                    body.appendChild(entryEl);
+                });
+            }
+
+            sheet.appendChild(header);
+            sheet.appendChild(body);
+            modal.appendChild(sheet);
+            document.body.appendChild(modal);
+            modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
+        };
+
+        const p = window.DQX_RELEASE_NOTES_PROMISE || Promise.resolve(window.DQX_RELEASE_NOTES);
+        p.then((notes) => open(notes || window.DQX_RELEASE_NOTES));
+    },
 
     renderToolMenu: function() {
         const isMobile = this.isMobile();
-        console.log(`[DQXTools] renderToolMenu: sidebarVisible=${this.sidebarVisible} localStorage=${localStorage.getItem('dqx_sidebar_visible')}`);
 
-        const menuEntries = Object.entries(this.tools).filter(([id, tool]) => !tool.hideInMenu);
-
-        const menuButtons = menuEntries.map(([id, tool]) => {
-            const icon = tool.icon || '🔧';
-            const name = tool.name;
-            const isActive = (this.currentTool === id);
-            return `
-                <button class="tool-menu-btn ${isActive ? 'active' : ''}" data-tool-id="${id}">
-                    ${icon}<span class="menu-btn-label">${name}</span>
-                </button>
-            `;
-        }).join('');
-
-        const oldBar = document.getElementById('tool-menu-bar');
-        if (oldBar) oldBar.remove();
-
-        // フロートボタンを削除（再作成するため）
-        const oldFloatBtn = document.getElementById('sidebar-float-toggle');
-        if (oldFloatBtn) oldFloatBtn.remove();
+        const menuEntries = Object.entries(this.tools).filter(([, tool]) => !tool.hideInMenu);
+        document.getElementById('tool-menu-bar')?.remove();
+        document.getElementById('sidebar-float-toggle')?.remove();
 
         const menuBar = document.createElement('div');
         menuBar.id = 'tool-menu-bar';
-        
+
+        const scrollArea = document.createElement('div');
+        const fixedArea = document.createElement('div');
+
         if (isMobile) {
+            const isHidden = !this.sidebarVisible;
             menuBar.className = 'tool-menu-bottom';
-            menuBar.innerHTML = `
-                <div class="tool-menu-scroll">
-                    ${menuButtons}
-                </div>
-                <div class="tool-menu-fixed">
-                    <button class="tool-menu-btn home-btn" data-action="home">🏠<span class="menu-btn-label">ホーム</span></button>
-                    <button class="tool-menu-btn dark-mode-btn" data-action="dark">${this.darkMode ? '☀️' : '🌙'}<span class="menu-btn-label">${this.darkMode ? 'ライト' : 'ダーク'}</span></button>
-                </div>
-            `;
-            
-            document.body.appendChild(menuBar);
-            
-            const homeBtn = menuBar.querySelector('[data-action="home"]');
-            if (homeBtn) homeBtn.onclick = () => this.goHome();
-            
-            const darkBtn = menuBar.querySelector('[data-action="dark"]');
-            if (darkBtn) darkBtn.onclick = () => this.toggleDarkMode();
-            
-            menuBar.querySelectorAll('.tool-menu-scroll .tool-menu-btn').forEach(btn => {
+            menuBar.style.display = isHidden ? 'none' : '';
+
+            scrollArea.className = 'tool-menu-scroll';
+            fixedArea.className = 'tool-menu-fixed';
+
+            menuEntries.forEach(([id, tool]) => {
+                const btn = document.createElement('button');
+                btn.className = `tool-menu-btn ${this.currentTool === id ? 'active' : ''}`;
+                btn.dataset.toolId = id;
+                btn.type = 'button';
+                btn.appendChild(document.createTextNode(tool.icon || '🔧'));
+
+                const label = document.createElement('span');
+                label.className = 'menu-btn-label';
+                dqxAppendEscapedTextWithBr(label, tool.name);
+                btn.appendChild(label);
                 btn.onclick = () => {
                     const toolId = btn.dataset.toolId;
-                    if (toolId && this.currentTool !== toolId) {
-                        this.loadTool(toolId);
-                    }
+                    if (toolId && this.currentTool !== toolId) this.loadTool(toolId);
                 };
+                scrollArea.appendChild(btn);
             });
+
+            const homeBtn = document.createElement('button');
+            homeBtn.className = 'tool-menu-btn home-btn';
+            homeBtn.type = 'button';
+            homeBtn.dataset.action = 'home';
+            homeBtn.appendChild(document.createTextNode('🏠'));
+            const homeLabel = document.createElement('span');
+            homeLabel.className = 'menu-btn-label';
+            homeLabel.textContent = 'ホーム';
+            homeBtn.appendChild(homeLabel);
+            homeBtn.onclick = () => this.goHome();
+            fixedArea.appendChild(homeBtn);
+
+            const collapseBtn = document.createElement('button');
+            collapseBtn.className = 'tool-menu-btn collapse-btn';
+            collapseBtn.type = 'button';
+            collapseBtn.dataset.action = 'toggle-sidebar';
+            collapseBtn.appendChild(document.createTextNode('▼'));
+            const collapseLabel = document.createElement('span');
+            collapseLabel.className = 'menu-btn-label';
+            collapseLabel.textContent = '閉じる';
+            collapseBtn.appendChild(collapseLabel);
+            collapseBtn.onclick = () => this.toggleSidebar();
+            fixedArea.appendChild(collapseBtn);
+
+            menuBar.appendChild(scrollArea);
+            menuBar.appendChild(fixedArea);
+            document.body.appendChild(menuBar);
+
+            if (isHidden) {
+                const floatBtn = document.createElement('button');
+                floatBtn.id = 'sidebar-float-toggle';
+                floatBtn.className = 'sidebar-float-btn';
+                floatBtn.textContent = '▲';
+                floatBtn.title = 'ツールバーを表示';
+                floatBtn.style.display = 'flex';
+                floatBtn.onclick = () => this.toggleSidebar();
+                document.body.appendChild(floatBtn);
+            }
         } else {
-            // PC／タブレット横向き
             const isHidden = !this.sidebarVisible;
             menuBar.className = 'tool-menu-sidebar';
             menuBar.style.display = isHidden ? 'none' : '';
-            
-            menuBar.innerHTML = `
-                <div class="tool-menu-sidebar-scroll">
-                    ${menuButtons}
-                </div>
-                <div class="tool-menu-sidebar-fixed">
-                    <button class="tool-menu-btn sidebar-toggle-btn" data-action="toggle-sidebar">◀<span class="menu-btn-label">閉じる</span></button>
-                    <button class="tool-menu-btn home-btn" data-action="home">🏠<span class="menu-btn-label">ホーム</span></button>
-                    <button class="tool-menu-btn dark-mode-btn" data-action="dark">${this.darkMode ? '☀️' : '🌙'}<span class="menu-btn-label">${this.darkMode ? 'ライト' : 'ダーク'}</span></button>
-                </div>
-            `;
-            
-            document.body.appendChild(menuBar);
-            
-            const toggleBtn = menuBar.querySelector('[data-action="toggle-sidebar"]');
-            if (toggleBtn) toggleBtn.onclick = () => this.toggleSidebar();
-            
-            const homeBtn = menuBar.querySelector('[data-action="home"]');
-            if (homeBtn) homeBtn.onclick = () => this.goHome();
-            
-            const darkBtn = menuBar.querySelector('[data-action="dark"]');
-            if (darkBtn) darkBtn.onclick = () => this.toggleDarkMode();
-            
-            menuBar.querySelectorAll('.tool-menu-sidebar-scroll .tool-menu-btn').forEach(btn => {
+
+            scrollArea.className = 'tool-menu-sidebar-scroll';
+            fixedArea.className = 'tool-menu-sidebar-fixed';
+
+            menuEntries.forEach(([id, tool]) => {
+                const btn = document.createElement('button');
+                btn.className = `tool-menu-btn ${this.currentTool === id ? 'active' : ''}`;
+                btn.dataset.toolId = id;
+                btn.type = 'button';
+                btn.appendChild(document.createTextNode(tool.icon || '🔧'));
+
+                const label = document.createElement('span');
+                label.className = 'menu-btn-label';
+                dqxAppendEscapedTextWithBr(label, tool.name);
+                btn.appendChild(label);
                 btn.onclick = () => {
                     const toolId = btn.dataset.toolId;
-                    if (toolId && this.currentTool !== toolId) {
-                        this.loadTool(toolId);
-                    }
+                    if (toolId && this.currentTool !== toolId) this.loadTool(toolId);
                 };
+                scrollArea.appendChild(btn);
             });
 
-            // 格納状態に応じてフロートボタンを表示
+            const toggleBtn = document.createElement('button');
+            toggleBtn.className = 'tool-menu-btn sidebar-toggle-btn';
+            toggleBtn.type = 'button';
+            toggleBtn.dataset.action = 'toggle-sidebar';
+            toggleBtn.appendChild(document.createTextNode('◀'));
+            const toggleLabel = document.createElement('span');
+            toggleLabel.className = 'menu-btn-label';
+            toggleLabel.textContent = '閉じる';
+            toggleBtn.appendChild(toggleLabel);
+            toggleBtn.onclick = () => this.toggleSidebar();
+            fixedArea.appendChild(toggleBtn);
+
+            const homeBtn = document.createElement('button');
+            homeBtn.className = 'tool-menu-btn home-btn';
+            homeBtn.type = 'button';
+            homeBtn.dataset.action = 'home';
+            homeBtn.appendChild(document.createTextNode('🏠'));
+            const homeLabel = document.createElement('span');
+            homeLabel.className = 'menu-btn-label';
+            homeLabel.textContent = 'ホーム';
+            homeBtn.appendChild(homeLabel);
+            homeBtn.onclick = () => this.goHome();
+            fixedArea.appendChild(homeBtn);
+
+            menuBar.appendChild(scrollArea);
+            menuBar.appendChild(fixedArea);
+            document.body.appendChild(menuBar);
+
             if (isHidden) {
                 const floatBtn = document.createElement('button');
                 floatBtn.id = 'sidebar-float-toggle';
                 floatBtn.className = 'sidebar-float-btn';
                 floatBtn.textContent = '▶';
                 floatBtn.title = 'ツールバーを表示';
-                // 強制的に表示させる（CSS で非表示になっている環境対策）
                 floatBtn.style.display = 'flex';
                 floatBtn.onclick = () => this.toggleSidebar();
                 document.body.appendChild(floatBtn);
             }
         }
-        
+
         this.updateContainerPadding();
     },
 
     updateContainerPadding: function() {
-        const isMobile = this.isMobile();
         const toolContainer = document.getElementById('dqx-tool-container');
         if (!toolContainer) return;
-
-        if (isMobile) {
-            toolContainer.style.paddingBottom = '70px';
-            toolContainer.style.paddingRight = '0';
+        if (this.isMobile()) {
+            toolContainer.style.paddingBottom = this.sidebarVisible ? '70px' : '0';
+            toolContainer.style.paddingRight  = '0';
         } else {
-            const isHidden = !this.sidebarVisible;
             toolContainer.style.paddingBottom = '0';
-            toolContainer.style.paddingRight = isHidden ? '0' : '80px';
+            toolContainer.style.paddingRight  = this.sidebarVisible ? '80px' : '0';
         }
     },
 
     loadTestTool: async function(toolId, tool) {
-        // HTMLとランチャーのバージョン整合性チェック（テストツール読み込み前）
+        // バージョン整合性チェック（テストツール読み込み前）
         if (typeof window.HTML_VERSION !== 'undefined' && window.HTML_VERSION !== APP_VERSION) {
-            const reloadKey = window.RELOAD_KEY || 'dqx_reload_count';
-            const maxReload = window.MAX_RELOAD || 2;
+            const reloadKey   = window.RELOAD_KEY || 'dqx_reload_count';
+            const maxReload   = window.MAX_RELOAD || 2;
             const reloadCount = parseInt(sessionStorage.getItem(reloadKey)) || 0;
             if (reloadCount < maxReload) {
                 sessionStorage.setItem(reloadKey, reloadCount + 1);
-                alert(`バージョン不一致が検出されました。ページを再読み込みして更新します。（${reloadCount + 1}/${maxReload}）`);
-                location.reload(true);
+                window.dqxShowToast(
+                    `バージョン不一致が検出されました。再読み込みします。（${reloadCount + 1}/${maxReload}）`,
+                    { duration: 2500 }
+                );
+                setTimeout(() => location.reload(true), 2600);
                 return false;
             } else {
                 sessionStorage.removeItem(reloadKey);
-                alert('バージョン不一致ですが再読み込み上限に達したため続行します。ページを手動で再読み込みしてください。');
+                window.dqxShowToast(
+                    'バージョン不一致ですが再読み込み上限に達したため続行します。ページを手動で再読み込みしてください。',
+                    { duration: 8000 }
+                );
             }
         }
+
         const config = tool.testToolConfig;
         if (!config) return false;
-        
-        let token = localStorage.getItem('dqx_test_token');
+
+        let token = sessionStorage.getItem('dqx_test_token');
         if (!token) {
-            token = prompt(`🔑 ${tool.name}を使用するためのGitHub APIトークンを入力してください（開発者専用）`);
-            if (!token) return false;
-            localStorage.setItem('dqx_test_token', token);
+            this._promptToken();
+            return false;
         }
-        
-        const loadingDiv = document.createElement('div');
-        loadingDiv.id = 'dqx-loading-test';
+
+        const loadingDiv         = document.createElement('div');
+        loadingDiv.id            = 'dqx-loading-test';
         loadingDiv.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.0);z-index:10001;';
         document.body.appendChild(loadingDiv);
-        
+
         try {
-            const res = await fetch(`https://api.github.com/repos/rre1111/dqx-private-api/contents/${config.filename}`, {
-                headers: {
-                    'Authorization': `token ${token}`,
-                    'Accept': 'application/vnd.github.v3.raw'
+            const res = await fetch(
+                `https://api.github.com/repos/rre1111/dqx-private-api/contents/${config.filename}`,
+                {
+                    headers: {
+                        Authorization: `token ${token}`,
+                        Accept: 'application/vnd.github.v3.raw'
+                    }
                 }
-            });
+            );
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
             const code = await res.text();
-            
+
             const script = document.createElement('script');
             script.dataset.testTool = config.filename;
-            script.textContent = code;
+            script.textContent      = code;
             document.head.appendChild(script);
-            
+
             loadingDiv.remove();
-            
-            if (typeof window[config.globalName] !== 'undefined' && typeof window[config.globalName].render === 'function') {
+
+            const globalObj = window[config.globalName];
+            if (globalObj && typeof globalObj.render === 'function') {
                 this.container.innerHTML = '';
-                const newContainer = document.createElement('div');
-                newContainer.id = 'dqx-tool-container';
+                const newContainer       = document.createElement('div');
+                newContainer.id          = 'dqx-tool-container';
                 this.container.appendChild(newContainer);
-                window[config.globalName].render('#dqx-tool-container');
+                globalObj.render('#dqx-tool-container');
                 this.currentTool = toolId;
                 this.renderToolMenu();
                 return true;
             } else {
                 throw new Error('ツール読み込み失敗');
             }
-        } catch(e) {
+        } catch (e) {
             loadingDiv.remove();
             console.error(e);
-            alert(`認証失敗: ${e.message}`);
-            localStorage.removeItem('dqx_test_token');
+            window.dqxShowToast(`認証失敗: ${e.message}`, { duration: 6000 });
+            sessionStorage.removeItem(STORAGE_KEYS.TEST_TOKEN);
             this.goHome();
             return false;
         }
@@ -561,89 +1290,91 @@ const DQXTools = {
 
     loadTool: async function(toolId) {
         const tool = this.tools[toolId];
-        if (!tool) return;
-        if (this.currentTool === toolId) return;
+        if (!tool || this.currentTool === toolId) return;
+
+        // 6時跨ぎ（JST日付ロールオーバー）を検知したら、以降の処理はせず
+        // キャッシュクリア込みの再読み込みに委ねる（アプデ蓄積防止）
+        if (dqxCheckDateRollover()) return;
+
+        // バッジクリア
+        if (window.DQX_CARD_BADGES && window.DQX_CARD_BADGES[toolId]) {
+            delete window.DQX_CARD_BADGES[toolId];
+            try {
+                const saved = JSON.parse(localStorage.getItem(STORAGE_KEYS.BG_BADGES) || '{}');
+                delete saved[toolId];
+                localStorage.setItem(STORAGE_KEYS.BG_BADGES, JSON.stringify(saved));
+            } catch(e) {}
+        }
+
+        if (window.dqxCheckVersion) window.dqxCheckVersion();
 
         if (tool.hideInMenu && tool.testToolConfig) {
             this.destroyCurrentTool();
-            const oldContainer = document.getElementById('dqx-tool-container');
-            if (oldContainer) oldContainer.remove();
+            document.getElementById('dqx-tool-container')?.remove();
             await this.loadTestTool(toolId, tool);
             return;
         }
 
         this.destroyCurrentTool();
+        document.getElementById('dqx-tool-container')?.remove();
 
-        const oldContainer = document.getElementById('dqx-tool-container');
-        if (oldContainer) oldContainer.remove();
-
-        const toolContainer = document.createElement('div');
-        toolContainer.id = 'dqx-tool-container';
+        const toolContainer    = document.createElement('div');
+        toolContainer.id       = 'dqx-tool-container';
         this.container.appendChild(toolContainer);
 
-        // 読み込み時の画像とテキスト表示は廃止（画像データは残す）
-        const loadingDiv = document.createElement('div');
-        loadingDiv.id = 'dqx-loading';
-        loadingDiv.style.cssText = `
-            position: fixed;
-            top: 0; left: 0;
-            width: 100%; height: 100%;
-            background: rgba(0, 0, 0, 0.0);
-            z-index: 20000;
-        `;
-        // 画像と説明文は表示しないため innerHTML は空にする
+        const loadingDiv         = document.createElement('div');
+        loadingDiv.id            = 'dqx-loading';
+        loadingDiv.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.0);z-index:20000;';
         document.body.appendChild(loadingDiv);
 
         try {
-            this.removeOldToolScripts(tool.url);
-            await this.loadScript(tool.url);
+            this.removeOldToolScripts(tool.url, tool.ver);
+            await this.loadScript(tool.url, tool.renderFn, tool.ver);
 
-            const fn = tool.renderFn
-                .split('.')
+            const renderFnParts = tool.renderFn
+                .split('.');
+            const fn = renderFnParts
                 .reduce((obj, key) => obj && obj[key], window);
+            const contextObj = renderFnParts.length > 1
+                ? renderFnParts.slice(0, -1).reduce((obj, key) => obj && obj[key], window)
+                : window;
 
-            // 即時にローディングを消す（任意の遅延は廃止）
             loadingDiv.remove();
 
             if (typeof fn === 'function') {
                 this.container.innerHTML = '';
-                const newToolContainer = document.createElement('div');
-                newToolContainer.id = 'dqx-tool-container';
+                const newToolContainer   = document.createElement('div');
+                newToolContainer.id      = 'dqx-tool-container';
                 this.container.appendChild(newToolContainer);
-
-                fn('#dqx-tool-container');
+                fn.call(contextObj, '#dqx-tool-container');
                 this.currentTool = toolId;
                 this.renderToolMenu();
             } else {
-                toolContainer.innerHTML = '<div style="color: red; text-align: center; padding: 40px;">エラー: ツールの読み込みに失敗しました</div>';
+                toolContainer.innerHTML = '<div style="color:red;text-align:center;padding:40px;">エラー: ツールの読み込みに失敗しました</div>';
                 this.goHome();
             }
-        } catch(e) {
+        } catch (e) {
             loadingDiv.remove();
             console.error('ツール読み込みエラー:', e);
-            toolContainer.innerHTML = '<div style="color: red; text-align: center; padding: 40px;">エラー: ツールの読み込みに失敗しました</div>';
+            toolContainer.innerHTML = '<div style="color:red;text-align:center;padding:40px;">エラー: ツールの読み込みに失敗しました</div>';
             this.goHome();
         }
     },
 
     goHome: function() {
+        // 6時跨ぎ検知（ホームへの遷移時にも同様にチェックする）
+        if (dqxCheckDateRollover()) return;
+
         this.destroyCurrentTool();
-
-        const menuBar = document.getElementById('tool-menu-bar');
-        if (menuBar) menuBar.remove();
-
-        const floatBtn = document.getElementById('sidebar-float-toggle');
-        if (floatBtn) floatBtn.remove();
-
-        const oldContainer = document.getElementById('dqx-tool-container');
-        if (oldContainer) oldContainer.remove();
+        document.getElementById('tool-menu-bar')?.remove();
+        document.getElementById('sidebar-float-toggle')?.remove();
+        document.getElementById('dqx-tool-container')?.remove();
 
         const newContainer = document.createElement('div');
-        newContainer.id = 'dqx-tool-container';
+        newContainer.id    = 'dqx-tool-container';
         this.container.appendChild(newContainer);
 
         this.removeTestToolScripts();
-
         this.currentTool = null;
         this.showLauncher();
     },
@@ -652,26 +1383,22 @@ const DQXTools = {
         if (this.currentTool) {
             const tool = this.tools[this.currentTool];
             if (tool) {
-                if (tool.testToolConfig) {
-                    const testGlobalName = tool.testToolConfig.globalName;
-                    if (window[testGlobalName] && typeof window[testGlobalName].destroy === 'function') {
-                        window[testGlobalName].destroy();
-                    }
-                } else if (tool.renderFn) {
-                    const globalName = tool.renderFn.split('.')[0];
-                    if (window[globalName] && typeof window[globalName].destroy === 'function') {
-                        window[globalName].destroy();
-                    }
+                const globalName = tool.testToolConfig
+                    ? tool.testToolConfig.globalName
+                    : tool.renderFn && tool.renderFn.split('.')[0];
+                if (globalName && window[globalName] && typeof window[globalName].destroy === 'function') {
+                    window[globalName].destroy();
                 }
             }
         }
-
         this.removeTestToolScripts();
 
-        const possibleGlobalNames = ['DQtool', 'DQtool2', 'DQtool3', 'Tool4'];
-        possibleGlobalNames.forEach(globalName => {
-            if (window[globalName] && typeof window[globalName].destroy === 'function') {
-                window[globalName].destroy();
+        // testToolConfig を持つすべての登録済みツールの destroy を呼ぶ
+        Object.values(this.tools).forEach((tool) => {
+            if (!tool.testToolConfig) return;
+            const g = tool.testToolConfig.globalName;
+            if (window[g] && typeof window[g].destroy === 'function') {
+                window[g].destroy();
             }
         });
     },
@@ -685,50 +1412,62 @@ const DQXTools = {
             window.removeEventListener('resize', this.boundResizeHandler);
             this.boundResizeHandler = null;
         }
-        const floatBtn = document.getElementById('sidebar-float-toggle');
-        if (floatBtn) floatBtn.remove();
+        if (this._netPopoverAbort) {
+            this._netPopoverAbort.abort();
+            this._netPopoverAbort = null;
+        }
+        document.getElementById('sidebar-float-toggle')?.remove();
     },
 
-    removeOldToolScripts: function(url) {
-        const cacheBustUrl = url + '?v=' + APP_VERSION;
-        const rawUrl = url;
-
-        document.querySelectorAll(`script[src="${cacheBustUrl}"]`).forEach(script => script.remove());
-        document.querySelectorAll(`script[src="${rawUrl}"]`).forEach(script => script.remove());
+    removeOldToolScripts: function(url, ver) {
+        const cacheBustUrl = url + '?v=' + encodeURIComponent(ver || APP_VERSION);
+        document.querySelectorAll(`script[src="${cacheBustUrl}"]`).forEach((s) => s.remove());
+        document.querySelectorAll(`script[src^="${url}?v="]`).forEach((s) => s.remove());
+        document.querySelectorAll(`script[src="${url}"]`).forEach((s) => s.remove());
     },
 
     removeTestToolScripts: function() {
-        document.querySelectorAll('script[data-test-tool]').forEach(script => script.remove());
+        document.querySelectorAll('script[data-test-tool]').forEach((s) => s.remove());
     },
 
-    loadScript: function(url) {
-        // HTML側のバージョンが存在する場合、起動中のランチャー版と一致するか確認
+    loadScript: function(url, renderFn, ver) {
+        // renderFn のホワイトリスト確認
+        if (renderFn && !isAllowedRenderFn(renderFn)) {
+            return Promise.reject(new Error(`Blocked renderFn: ${renderFn}`));
+        }
+
+        // バージョン整合性チェック
         if (typeof window.HTML_VERSION !== 'undefined' && window.HTML_VERSION !== APP_VERSION) {
-            const reloadKey = window.RELOAD_KEY || 'dqx_reload_count';
-            const maxReload = window.MAX_RELOAD || 2;
+            const reloadKey   = window.RELOAD_KEY || 'dqx_reload_count';
+            const maxReload   = window.MAX_RELOAD || 2;
             const reloadCount = parseInt(sessionStorage.getItem(reloadKey)) || 0;
             if (reloadCount < maxReload) {
                 sessionStorage.setItem(reloadKey, reloadCount + 1);
-                alert(`バージョン不一致が検出されました。ページを再読み込みして更新します。（${reloadCount + 1}/${maxReload}）`);
-                location.reload(true);
-                return new Promise(() => {}); // ページ再読み込みするので永続的に待つ
+                window.dqxShowToast(
+                    `バージョン不一致が検出されました。再読み込みします。（${reloadCount + 1}/${maxReload}）`,
+                    { duration: 2500 }
+                );
+                setTimeout(() => location.reload(true), 2600);
+                return new Promise(() => {});
             } else {
                 sessionStorage.removeItem(reloadKey);
-                alert('バージョン不一致ですが再読み込み上限に達したため続行します。ページを手動で再読み込みしてください。');
+                window.dqxShowToast(
+                    'バージョン不一致ですが再読み込み上限に達したため続行します。ページを手動で再読み込みしてください。',
+                    { duration: 8000 }
+                );
             }
         }
 
-        const cacheBustUrl = url + '?v=' + APP_VERSION;
+        const cacheBustUrl = url + '?v=' + encodeURIComponent(ver || APP_VERSION);
         return new Promise((resolve, reject) => {
-            const existing = document.querySelector(`script[src="${cacheBustUrl}"]`);
-            if (existing) {
+            if (document.querySelector(`script[src="${cacheBustUrl}"]`)) {
                 resolve();
                 return;
             }
-            const script = document.createElement('script');
-            script.src = cacheBustUrl;
-            script.onload  = () => resolve();
-            script.onerror = () => reject(new Error(`Script load failed: ${url}`));
+            const script    = document.createElement('script');
+            script.src      = cacheBustUrl;
+            script.onload   = () => resolve();
+            script.onerror  = () => reject(new Error(`Script load failed: ${url}`));
             document.head.appendChild(script);
         });
     }

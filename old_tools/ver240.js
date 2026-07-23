@@ -1,15 +1,10 @@
-// ========== 傭兵用多機能ツール ver2.5.0 ==========
-// ベース: ver2.4.0 統合
+// ========== 傭兵用多機能ツール ver2.4.0 ==========
+// ベース: ver2.3.0 統合
 // [CSS]    インラインstyleを全廃し、クラスベースで再定義
 // [AUDIO]  playLapWarning移植（AudioContext管理・resume対応・音色変更）
 // [QUAL]   基本的な動作ロジックは2.1.0から変更なし（ver2.2.0時点）
 // [LOGIC]  経験値計算を実測値ベースに修正: applyLimit 廃止 → floor + fdBonus 方式に変更（ver2.3.0）
 // [RECOVERY] 電話中断・誤操作等でdestroyを経由せず終了した場合のセッション自動保存/復元を追加（ver2.4.0）
-// [BUG]      passbookOffset/remaining への不要な Math.ceil を削除（ver2.5.0）
-// [NOTE]     お供あり+料理あり時の経験値計算は合算floor+1方式で正しいことを実測確認済み
-//             （デュラハーン+はぐメタ×3(hg), 料理+元気, E=368243）
-// [DOC]      お供・各Buff/アイテム・通帳1/2・LAPの実質的用途をコメント内に明示（ver2.5.1）
-// [REMOVE]   デスペナルティ及び関連UIを撤廃（実用性のある精度の実装が不可能なため。ver2.5.1）
 
 // 変更履歴（ver2.0.0時点）:
 // [BUG] _recalcLaps: 削除後の lastLapSec 更新を正確化
@@ -26,29 +21,6 @@
 
 (function (global) {
   "use strict";
-
-  // ═══════════════════════════════════════════════════════════════════
-  // 用語・仕様定義
-  // ═══════════════════════════════════════════════════════════════════
-  //
-  // [お供] 戦闘中に対象のモンスター以外で同時にエンカウントする可能性のあるもの。
-  //
-  // [Buff/アイテム]（効果・時間・課金情報）
-  //   修練の心得     … 1,100円　使用から3日間　効果100%
-  //   皇帝のタロット   … 魔法の迷宮のミネアによる　正位置2時間／逆位置1時間　効果100%
-  //   元気玉/超元気玉  … 30分　使用者に100% / PT全体に100%
-  //   爆伸丸        … 330円　30分　使用者に200%（元気玉系と併用不可）
-  //
-  // [経験値の通帳1/2]
-  //   通帳1 … 220円　蓄積上限500万
-  //   通帳2 … 440円　蓄積上限1000万
-  //   通帳1/2は排他選択（同時併用不可）。いずれも月額利用権に付随するオプション契約。
-  //
-  // [LAPの実質的用途]
-  //   基本的な戦闘間の記録用途では使用しない（転職時も対象外）。
-  //   操作ミスや全滅、通信トラブル等が発生した際の目印としてのみ用いる。
-  //
-  // ═══════════════════════════════════════════════════════════════════
 
   // ─── お供経験値定数 ───────────────────────────────────────────────
   const PARTNER_EXP = {
@@ -248,16 +220,16 @@
       const rawPCommon = partnerExpVal * rate;
       const rawPAngel  = ag ? partnerExpVal * 2 : 0;
 
-      // ゲームの経験値計算ロジック（実測値10件から確定）:
+      // ゲームの経験値計算ロジック（実測値9件から確定）:
       //   floor(total) + (料理あり ? 1 : 0)
       // 料理(+0.3)があるとrateに小数部が生じる。c=5,10等でtotalが
       // 数学的には整数になる組み合わせでもゲームは+1する。
       // 料理なし(rate=整数)はtotalが正確に整数になるため+1不要。
-      // エンゼル経験値(rawAngel)のrateは×2固定(整数)なので
-      // callCount倍しても小数部が生じない → fdBonus不要。
+      // エンゼル経験値(rawAngel)のrateは×2固定(整数)のため料理補正は
+      // 通常経験値と同じ条件(ag && fd)でのみ適用する。
       const fdBonus = fd ? 1 : 0;
       const rawTotalCommon = Math.floor(rawCommon * callCount + rawPCommon) + fdBonus;
-      const rawTotalAngel  = Math.floor(rawAngel  * callCount + rawPAngel);
+      const rawTotalAngel  = Math.floor(rawAngel  * callCount + rawPAngel)  + (ag && fd ? 1 : 0);
       const rawTotal       = rawTotalCommon + rawTotalAngel;
 
       if (hasPassbook) {
@@ -406,7 +378,8 @@
 
     // ── 行追加 ───────────────────────────────────────────────────────────
     function addRow(rowId, callCount, expVal, rowType, elapsedSec, lapSec,
-                    isMain = false, rawCapped = null, monsterId = null) {
+                    isMain = false, rawCapped = null, monsterId = null,
+                    hasDeathPenalty = false) {
 
       const row = document.createElement("div");
       row.className = "exp-row";
@@ -419,6 +392,7 @@
       row.dataset.count        = callCount;
       row.dataset.bid          = rowId;
       row.dataset.monsterId    = monsterId || $("ms").value;
+      row.dataset.desp         = hasDeathPenalty ? "true" : "false";
 
       const snapshot = {
         fd:     $("fd").checked,
@@ -510,7 +484,36 @@
       }
       row.appendChild(expCell);
 
-      // ── コントロール（呼び数・お供） ──────────────────────────────────
+      // ── デスペナチェック（LAP・転職行には表示しない） ──────────────────
+      if (rowId !== "LAP" && rowType !== "job") {
+        const despLabel = document.createElement("label");
+        despLabel.className = "desp-label";
+        const despCb = document.createElement("input");
+        despCb.type      = "checkbox";
+        despCb.className = "desp-tgl";
+        despCb.checked   = hasDeathPenalty;
+        const despIcon = document.createElement("span");
+        despIcon.className   = "desp-icon";
+        despIcon.textContent = "💀";
+        despLabel.appendChild(despCb);
+        despLabel.appendChild(despIcon);
+        row.appendChild(despLabel);
+
+        despCb.onchange = () => {
+          const newDesp = despCb.checked ? "true" : "false";
+          const bid = row.dataset.bid;
+          rowCache
+            .filter(r => r.dataset.bid === bid && r.dataset.type !== "lap_only" && r.dataset.type !== "job")
+            .forEach(r => {
+              r.dataset.desp = newDesp;
+              const cb = r.querySelector(".desp-tgl");
+              if (cb) cb.checked = despCb.checked;
+            });
+          updateTotal();
+        };
+      }
+
+      // ── コントロール（呼び数・パートナー） ──────────────────────────────
       if (rowId !== "LAP" && rowType !== "job") {
         const controls = document.createElement("div");
         controls.className = "row-controls";
@@ -656,11 +659,25 @@
     function updateTotal() {
       let totalExp    = 0;
       let passbookExp = 0;
+      let penaltyMin  = 0;
+      let penaltyMax  = 0;
 
       rowCache.forEach(el => {
         const expVal = parseInt(el.dataset.val) || 0;
         totalExp += expVal;
         if (el.dataset.type === "pass") passbookExp += expVal;
+
+        if (el.dataset.desp === "true" &&
+            el.dataset.lap !== "-1" &&
+            el.dataset.type !== "lap_only" &&
+            el.dataset.type !== "job") {
+          const raw    = parseFloat(el.dataset.rawValCapped) || parseInt(el.dataset.val) || 0;
+          const lapSec = parseFloat(el.dataset.lap);
+          if (lapSec > 6.45) {
+            penaltyMin += raw * (6.45  / lapSec);
+            penaltyMax += raw * (2.58  / lapSec);
+          }
+        }
       });
 
       $("totalExpDisplay").textContent = totalExp.toLocaleString();
@@ -669,6 +686,23 @@
       if (passbookLimit > 0) {
         const remaining = Math.max(0, passbookExp - passbookOffset);
         $("passbookExpDisplay").textContent = Math.ceil(remaining).toLocaleString();
+      }
+
+      const hasPenalty = rowCache.some(r => r.dataset.desp === "true");
+      const penaltyRef = $("penaltyRef");
+      if (hasPenalty && penaltyMin > 0) {
+        penaltyRef.classList.remove("hidden");
+        penaltyRef.textContent = "";
+        const line1 = document.createTextNode("デスペナ想定:");
+        const br = document.createElement("br");
+        const line2 = document.createTextNode(
+          `${Math.ceil(penaltyMax).toLocaleString()}～${Math.ceil(penaltyMin).toLocaleString()}`
+        );
+        penaltyRef.appendChild(line1);
+        penaltyRef.appendChild(br);
+        penaltyRef.appendChild(line2);
+      } else {
+        penaltyRef.classList.add("hidden");
       }
 
       const lapResult = getAverageLapSec();
@@ -736,13 +770,8 @@
     //   ・render() を開いた瞬間、まず必ず initState() でクリーンな状態にしてから、
     //     「起動中フラグ」が残っていれば（＝前回 destroy を経由せず終了した）復元する
     //   ・destroy()（正常な離脱）では保存データを破棄し、次回は復元されないようにする
-    const STORAGE_KEYS = Object.freeze({
-      SESSION: 'dqx_expm_session',
-      ACTIVE: 'dqx_expm_active',
-      LAP_NOTIFY: 'dqx_lap_notify'
-    });
-    const STORAGE_KEY_SESSION = STORAGE_KEYS.SESSION;
-    const STORAGE_KEY_ACTIVE  = STORAGE_KEYS.ACTIVE;
+    const STORAGE_KEY_SESSION = 'dqx_expm_session';
+    const STORAGE_KEY_ACTIVE  = 'dqx_expm_active';
 
     function serializeRows() {
       return rowCache.map((r) => ({
@@ -756,20 +785,9 @@
         isMain:          r.dataset.main === "true",
         rawCapped:       r.dataset.rawValCapped !== undefined ? parseFloat(r.dataset.rawValCapped) : null,
         monsterId:       r.dataset.monsterId || null,
+        hasDeathPenalty: r.dataset.desp === "true",
         snapshot:        r.dataset.snapshot || null,
       }));
-    }
-
-    // 現在のオプション入力状態（fd/tr/ag/em・通帳・呼び数）を取得
-    function captureOptionState() {
-      return {
-        fd: $("fd")?.checked ?? true,
-        tr: $("tr")?.checked ?? false,
-        ag: $("ag")?.checked ?? false,
-        em: $("em")?.checked ?? false,
-        pb: root.querySelector('input[name="pb"]:checked')?.value || "0",
-        cn: $("cn")?.value ?? null,
-      };
     }
 
     function saveSession() {
@@ -778,8 +796,7 @@
           startTime, pauseSec, lastLapSec, jobOffsetSec, passbookOffset,
           killCount, optCallCount, ritaOrKuma,
           timerRunning: !!timerHandle,
-          rows:    serializeRows(),
-          options: captureOptionState(),
+          rows: serializeRows(),
           savedAt: Date.now(),
         }));
       } catch (e) { /* Safari プライベートモード等での失敗は無視 */ }
@@ -834,24 +851,10 @@
       }
 
       try {
-        // オプション（fd/tr/ag/em・通帳・呼び数）を先に復元する。
-        // 通帳残高(passbookOffset)の計算は pb（通帳上限選択）に依存するため、
-        // 行の再構築・updateTotal() より前に復元しておく必要がある。
-        if (data.options) {
-          if ($("fd")) $("fd").checked = !!data.options.fd;
-          if ($("tr")) $("tr").checked = !!data.options.tr;
-          if ($("ag")) $("ag").checked = !!data.options.ag;
-          if ($("em")) $("em").checked = !!data.options.em;
-          if (data.options.pb !== undefined && data.options.pb !== null) {
-            const pbRadio = root.querySelector(`input[name="pb"][value="${CSS.escape(String(data.options.pb))}"]`);
-            if (pbRadio) pbRadio.checked = true;
-          }
-        }
-
         (data.rows || []).forEach((r) => {
           addRow(
             r.rowId, r.callCount, r.expVal, r.rowType, r.elapsedSec, r.lapSec,
-            r.isMain, r.rawCapped, r.monsterId
+            r.isMain, r.rawCapped, r.monsterId, r.hasDeathPenalty
           );
           // addRow は現在のUI状態からsnapshotを再計算してしまうため、
           // 保存しておいた本来のsnapshot（当時のfd/tr/ag/em等の状態）で上書きする
@@ -862,8 +865,6 @@
         killCount      = data.killCount || 0;
         optCallCount   = data.optCallCount || 1;
         jobOffsetSec   = data.jobOffsetSec || 0;
-        // 通帳の残高(オフセット)を復元。pb を先に復元済みなので、
-        // 後続の updateTotal() で「通帳:残額/上限」の履歴連動が正しく再計算される。
         passbookOffset = data.passbookOffset || 0;
         lastLapSec     = data.lastLapSec || 0;
 
@@ -874,12 +875,10 @@
           $("btnKuma")?.classList.toggle("active-rita-kuma", isKuma);
         }
 
-        // タイマーは自動再開はしない（安全のため一時停止状態で復元）が、
-        // 経過時間は「保存した瞬間」までではなく「復元した瞬間（今）」までを
-        // 開始時刻(startTime)との差分で計算する。電話の通話時間なども
-        // 実際に経過した時間として反映させるため。
+        // タイマーは安全のため自動再開せず、一時停止状態として復元する
+        // （バックグラウンドで停止していた間の経過は正確に追えないため）
         if (data.timerRunning && data.startTime) {
-          pauseSec = Math.max(0, (Date.now() - data.startTime) / 1000);
+          pauseSec = Math.max(0, (data.savedAt - data.startTime) / 1000);
         } else {
           pauseSec = data.pauseSec || 0;
         }
@@ -891,12 +890,6 @@
 
         renumberRows();
         recalcLaps();
-        updateUI(false);   // pb 復元後の通帳エリア表示・oc(optCallCount)の再計算を反映
-        // cn（呼び数）は保存していた選択値をそのまま優先する
-        // （updateUI(false) では autoSetCount=false のため cn.value は上書きされない）
-        if (data.options && data.options.cn !== null && data.options.cn !== undefined && $("cn")) {
-          $("cn").value = data.options.cn;
-        }
         updateTotal();
         saveSession();   // savedAt を更新し、復元直後の32分猶予をリセットする
 
@@ -918,7 +911,7 @@
 
       initState();   // ① destroy を挟まず開かれた場合に備え、必ずクリーンな状態にする
 
-      const savedNotify = localStorage.getItem(STORAGE_KEYS.LAP_NOTIFY);
+      const savedNotify = localStorage.getItem("dqx_lap_notify");
       if (savedNotify !== null) lapNotifyEnabled = savedNotify === "true";
 
       // ─── HTML テンプレート（1つ目の構造・並び順を維持、クラスベースに変換） ──
@@ -1002,6 +995,7 @@ ${getStyles()}
         <span class="total-label">総獲得</span>
         <span id="totalExpDisplay" class="total-value">0</span>
       </div>
+      <div id="penaltyRef" class="penalty-ref hidden"></div>
       <div class="avg-row">
         <div>平均:<strong id="avgTimeDisplay" class="avg-value">--:--.--</strong></div>
       </div>
@@ -1049,7 +1043,7 @@ ${getStyles()}
 
       $("lapNotifyToggle").onchange = (e) => {
         lapNotifyEnabled = e.target.checked;
-        localStorage.setItem(STORAGE_KEYS.LAP_NOTIFY, lapNotifyEnabled);
+        localStorage.setItem("dqx_lap_notify", lapNotifyEnabled);
       };
 
       $("btnLap").onclick = () => {
@@ -1081,21 +1075,21 @@ ${getStyles()}
           rowCache.filter(r => r.dataset.type === "pass").forEach(r => {
             accumulatedRaw += parseFloat(r.dataset.rawValCapped) || 0;
           });
-          const remaining = Math.max(0, passbookLimit - (accumulatedRaw - passbookOffset));
+          const remaining = Math.ceil(Math.max(0, passbookLimit - (accumulatedRaw - passbookOffset)));
 
           if (remaining >= expResult.common) {
-            addRow(killCount, callCount, expResult.common, "pass", elapsed, lap, true, expResult.common, null);
+            addRow(killCount, callCount, expResult.common, "pass", elapsed, lap, true, expResult.common, null, false);
           } else if (remaining > 0) {
-            addRow(killCount, callCount, remaining, "pass", elapsed, lap, true, remaining, null);
-            addRow(killCount, callCount, expResult.common - remaining, "overflow", elapsed, lap, false, expResult.common - remaining, null);
+            addRow(killCount, callCount, remaining, "pass", elapsed, lap, true, remaining, null, false);
+            addRow(killCount, callCount, expResult.common - remaining, "overflow", elapsed, lap, false, expResult.common - remaining, null, false);
           } else {
-            addRow(killCount, callCount, expResult.common, "overflow", elapsed, lap, true, expResult.common, null);
+            addRow(killCount, callCount, expResult.common, "overflow", elapsed, lap, true, expResult.common, null, false);
           }
           if (expResult.angel > 0) {
-            addRow(killCount, callCount, expResult.angel, "angel", elapsed, lap, false, expResult.angel, null);
+            addRow(killCount, callCount, expResult.angel, "angel", elapsed, lap, false, expResult.angel, null, false);
           }
         } else {
-          addRow(killCount, callCount, expResult.total, "normal", elapsed, lap, true, expResult.total, null);
+          addRow(killCount, callCount, expResult.total, "normal", elapsed, lap, true, expResult.total, null, false);
         }
 
         lastLapSec = elapsed;
@@ -1144,7 +1138,7 @@ ${getStyles()}
         rowCache.filter(r => r.dataset.type === "pass").forEach(r => {
           accumulatedRaw += parseFloat(r.dataset.rawValCapped) || 0;
         });
-        passbookOffset = accumulatedRaw;
+        passbookOffset = Math.ceil(accumulatedRaw);
         updateTotal();
       };
 
@@ -1384,21 +1378,6 @@ ${getStyles()}
 </div>
   <div id="tab-changelog" class="modal-tab-content">
     <pre class="modal-changelog">
-v2.5.1 ...最終更新日 2026/07/21
-  - 下記定義をコメント内に明示
-    - お供
-    - 各Buff/アイテム(修練・皇帝・元気・爆伸)の効果・時間・課金情報
-    - 通帳1/2の上限・金額・排他・オプション契約
-    - LAPの実質的用途
-  - 下記機能の撤廃
-    - デスペナルティ及び関連UI(実用性のある精度の実装が不可能とされるため)
-
-v2.5.0 ...最終更新日 2026/07/11
-  - passbookOffset・remaining への冗長な Math.ceil を削除
-  - angellimitの不正な処理を修正
-  - お供あり+料理あり時の合算 floor+1 方式を実測確認
-    （デュラハーン+はぐメタ3, 料理+元気, E=368243）
-
 v2.4.0 ...最終更新日 2026/07/09
   - セッション自動保存・復元機能を追加
     （電話着信や誤操作などでツールがdestroyを経由せず終了した場合、
@@ -1612,6 +1591,7 @@ v1.1.7
   .total-row{display:flex;align-items:baseline;justify-content:center;gap:6px}
   .total-label{font-size:12px;font-weight:bold}
   .total-value{font-size:22px;font-weight:bold}
+  .penalty-ref{font-size:11px;color:#ff6666;margin-top:4px;white-space:pre-line}
   .avg-row{font-size:11px;border-top:1px solid #ddd;margin-top:4px;padding-top:4px}
   .avg-value{font-size:22px;font-weight:bold;color:#f39c12}
   .btn-calc{flex:4;font-size:21px;border-radius:6px;background:#0066cc;color:#fff;border:none;cursor:pointer;font-weight:bold;box-shadow:0 2px 4px rgba(0,0,0,0.2)}
@@ -1659,6 +1639,8 @@ v1.1.7
   .exp-cell-lap{width:85px;color:#aaa;font-size:10px}
   .exp-value{font-size:13px;min-width:58px;text-align:right;display:inline-block}
   .exp-label{font-size:10px}
+  .desp-label{margin:0 2px;display:inline-flex;align-items:center}
+  .desp-icon{font-size:9px}
   .row-controls{display:flex;gap:4px;align-items:center;flex:1}
   .row-controls-placeholder{flex:1;color:#aaa;text-align:center;font-size:10px}
   .rs{flex:1.2;font-size:12px;padding:2px 4px;background-color:#fff;color:#333}
@@ -1713,6 +1695,7 @@ v1.1.7
 
   body.dark-mode .panel-bg{background:#0f0f17;border-color:#2a2a3a}
   body.dark-mode .total-value{color:#fff}
+  body.dark-mode .penalty-ref{color:#ff8888}
   body.dark-mode .avg-row{border-top-color:#2a2a3a}
   body.dark-mode .avg-value{color:#ffaa66}
   body.dark-mode .btn-calc{background:#1a6eaa;color:#fff;border:1px solid #3399cc}
