@@ -794,7 +794,7 @@
         .kaji-crit-box { padding:12px; background:#2f2721; border-radius:8px; font-size:14px; }
         .kaji-crit-box b.big { color:#d97b3f; font-size:18px; }
         .kaji-grid { display:inline-grid; grid-template-columns: repeat(2, 63px); gap:5px; }
-        .kaji-grid-shell { display:inline-flex; justify-content:center; align-items:flex-start; padding:6px; border-radius:10px; background:rgba(34,29,25,0.55); position:relative; z-index:1; width:fit-content; max-width:100%; }
+        .kaji-grid-shell { display:inline-flex; justify-content:center; align-items:flex-start; padding:6px; border-radius:10px; background:rgba(34,29,25,0.55); position:relative; z-index:0; width:fit-content; max-width:100%; }
         .kaji-cell { position:relative; overflow:visible; height:51px; border-radius:8px; cursor:pointer; display:flex; flex-direction:column; align-items:center; justify-content:center; font-size:10px; gap:2px; border:1.5px dashed #443830; background:#221d19; color:#a89a8a; transition:box-shadow .3s ease, border-color .3s ease, transform .18s ease, background .3s ease; z-index:2; }
         .kaji-cell.included { border:2px solid #d97b3f; background:#2f2721; color:#ece4d8; }
         .kaji-cell.preview { border-color:#5aa8ff; background:#233145; }
@@ -807,9 +807,9 @@
         .kaji-popup { position:absolute; top:-4px; left:50%; font-weight:900; text-shadow:0 0 6px rgba(0,0,0,0.8); pointer-events:none; white-space:nowrap; z-index:5; animation:kajiPopUp 0.75s ease-out forwards; }
         @keyframes kajiPopUp { 0%{transform:translate(-50%,4px) scale(0.6);opacity:0;} 15%{transform:translate(-50%,-6px) scale(1.25);opacity:1;} 70%{transform:translate(-50%,-26px) scale(1);opacity:1;} 100%{transform:translate(-50%,-38px) scale(0.9);opacity:0;} }
         @keyframes kajiTempFx { 0%{opacity:0;transform:scale(0.9);} 20%{opacity:1;transform:scale(1.04);} 80%{opacity:0.85;transform:scale(1.0);} 100%{opacity:0;transform:scale(1.0);} }
-        .kaji-critbanner { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; pointer-events:none; }
+        .kaji-critbanner { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; pointer-events:none; z-index:10; }
         .kaji-critbanner-text { font-size:26px; font-weight:900; color:#ff5b3d; text-shadow:0 0 18px #ff5b3d, 0 0 6px #fff; background:rgba(20,10,8,0.55); padding:10px 22px; border-radius:12px; }
-        .kaji-tempfx { position:absolute; inset:0; border-radius:8px; pointer-events:none; animation:kajiTempFx 0.9s ease-out; }
+        .kaji-tempfx { position:absolute; inset:0; border-radius:8px; pointer-events:none; animation:kajiTempFx 0.9s ease-out; z-index:10; }
         .kaji-tempfx-text { position:absolute; top:8px; left:50%; transform:translateX(-50%); font-size:15px; font-weight:900; white-space:nowrap; }
         .kaji-minilog { margin-top:14px; font-size:11px; max-height:120px; overflow-y:auto; background:#2f2721; border-radius:8px; padding:8px; }
         .kaji-minilog-item { color:#a89a8a; margin-bottom:2px; }
@@ -822,7 +822,7 @@
         .kaji-preset-link { padding:3px 10px; border-radius:6px; border:1px solid #8fa3ad; background:transparent; color:#8fa3ad; cursor:pointer; font-size:12px; }
         .kaji-preset-link.danger { border-color:#b0504a; color:#b0504a; }
         .kaji-log-item { padding:6px; background:#2f2721; border-radius:6px; margin-bottom:6px; font-size:12px; }
-        .kaji-candidate-box { margin-top:10px; padding:8px; background:#2f2721; border-radius:8px; font-size:9px; max-height:140px; overflow-y:auto; line-height:1.3; }
+        .kaji-candidate-box { margin-top:0; padding:8px; background:#2f2721; border-radius:8px; font-size:9px; max-height:140px; overflow-y:auto; line-height:1.3; }
         @media (max-width: 560px) {
           .kaji-wrap { padding:6px 0 6px 6px !important; }
           .kaji-title { font-size:14px !important; }
@@ -1171,15 +1171,6 @@
 
       const ingotStatus = this._ingotStatusText();
 
-      let hint = '';
-      if (s.pendingMulti && !s.previewAnchor) {
-        hint = skill && skill.target === 'midare'
-          ? '<div style="margin-top:10px;font-size:12px;color:#d97b3f;">グリッドのいずれかのマスをクリックすると実行します</div>'
-          : '<div style="margin-top:10px;font-size:12px;color:#d97b3f;">対象の起点マスをグリッドでクリックすると範囲と候補威力が表示されます</div>';
-      } else if (s.pendingMulti && s.previewAnchor) {
-        hint = '<div style="margin-top:6px;font-size:11px;color:#5aa8ff;">もう一度同じマスをクリックすると実行します</div>';
-      }
-
       return (
         '<div class="kaji-row">' +
           '<div class="kaji-panel" style="position:relative;">' +
@@ -1193,21 +1184,20 @@
               '<div>温度: <b style="color:#d97b3f;">' + s.temp + '℃</b></div>' +
               '<div>集中力: <b style="color:#8fa3ad;">' + s.conc + ' / ' + this._maxConc() + '</b></div>' +
             '</div>' +
-            (ingotStatus ? ('<div style="margin-top:10px;padding:10px 14px;background:#3a2a10;border:1px solid #f0c452;border-radius:8px;font-size:15px;font-weight:800;color:#f0c452;">★ ' + esc(ingotStatus) + '</div>') : '') +
-            hint +
             (s.hephaestusReady ? '<button class="kaji-btn gold" data-action="useHephaestus" style="margin-top:10px;">🔥 必殺チャージを使う（次の1手が確定会心）</button>' : '') +
             (s.hephaestusActive ? '<div style="margin-top:8px;color:#f0c452;font-weight:700;font-size:13px;">次の1手は確定会心！</div>' : '') +
-            '<div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;">' +
+            '<div style="margin-top:10px;display:flex;gap:8px;align-items:center;flex-wrap:nowrap;">' +
               '<button class="kaji-btn outline" data-action="retry">やり直す</button>' +
               '<button class="kaji-btn success" data-action="evaluate">おわる</button>' +
             '</div>' +
+            (ingotStatus ? ('<div style="margin-top:10px;padding:10px 14px;background:#3a2a10;border:1px solid #f0c452;border-radius:8px;font-size:15px;font-weight:800;color:#f0c452;">★ ' + esc(ingotStatus) + '</div>') : '') +
             this._renderFinalGrade() +
             this._renderMiniLog() +
           '</div>' +
-          '<div class="kaji-panel" style="min-width:140px;flex:0 1 220px;padding:12px 12px 12px 12px;">' +
+          '<div class="kaji-panel" style="min-width:140px;flex:0 1 220px;padding:12px 12px 12px 12px;display:flex;flex-direction:column;gap:8px;justify-content:flex-start;">' +
             '<div class="kaji-section-title">特技を選択</div>' +
-            '<div id="kaji-skill-list-auto" style="max-height:220px;overflow-y:auto;">' + this._renderSkillList('auto') + '</div>' +
-            this._renderCandidatePreview('auto') +
+            '<div id="kaji-skill-list-auto" style="max-height:220px;overflow-y:auto;flex:1 1 auto;min-height:0;">' + this._renderSkillList('auto') + '</div>' +
+            '<div style="margin-top:auto;flex-shrink:0;">' + this._renderCandidatePreview('auto') + '</div>' +
           '</div>' +
         '</div>'
       );
@@ -1222,17 +1212,6 @@
         ? patternCells(skill.target, s.previewAnchor.r, s.previewAnchor.c, s.grid) : [];
       const allPreview = s.pendingMulti ? previewIds.concat(s.recMidareTargets) : [];
       const ingotStatus = this._ingotStatusText();
-
-      let hint = '';
-      if (s.pendingMulti && !s.recAwaiting) {
-        if (skill && skill.target === 'midare') {
-          hint = '<div style="margin-top:10px;font-size:12px;color:#d97b3f;">グリッドをタップして命中したマスを選択（' + s.recMidareTargets.length + '/4）</div>';
-        } else if (s.previewAnchor) {
-          hint = '<div style="margin-top:10px;font-size:12px;color:#d97b3f;">もう一度同じマスをタップで確定</div>';
-        } else {
-          hint = '<div style="margin-top:10px;font-size:12px;color:#d97b3f;">命中したマスをグリッドでタップしてください</div>';
-        }
-      }
 
       let rightPanel = '';
       if (!s.recAwaiting) {
@@ -1274,12 +1253,11 @@
               '<div>温度: <b style="color:#d97b3f;">' + s.temp + '℃</b>（技の使用で自動進行）</div>' +
               '<div>集中力: <b style="color:#8fa3ad;">' + s.conc + ' / ' + this._maxConc() + '</b></div>' +
             '</div>' +
-            (ingotStatus ? ('<div style="margin-top:10px;padding:10px 14px;background:#3a2a10;border:1px solid #f0c452;border-radius:8px;font-size:15px;font-weight:800;color:#f0c452;">★ ' + esc(ingotStatus) + '</div>') : '') +
-            hint +
-            '<div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;">' +
+            '<div style="margin-top:10px;display:flex;gap:8px;align-items:center;flex-wrap:nowrap;">' +
               '<button class="kaji-btn outline" data-action="retry">やり直す</button>' +
               '<button class="kaji-btn success" data-action="evaluate">おわる</button>' +
             '</div>' +
+            (ingotStatus ? ('<div style="margin-top:10px;padding:10px 14px;background:#3a2a10;border:1px solid #f0c452;border-radius:8px;font-size:15px;font-weight:800;color:#f0c452;">★ ' + esc(ingotStatus) + '</div>') : '') +
             this._renderFinalGrade() +
             this._renderMiniLog() +
           '</div>' +
