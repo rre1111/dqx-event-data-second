@@ -305,11 +305,7 @@
       if (!cell) return;
       cell.flashType = type;
       if (this._flashTimers[id]) clearTimeout(this._flashTimers[id]);
-      this._flashTimers[id] = setTimeout(() => {
-        const c = this.state.grid[id];
-        if (c) { c.flashType = null; c.popup = null; }
-        this._renderAll();
-      }, 850);
+      this._flashTimers[id] = setTimeout(() => { this._clearCellFx(id); }, 850);
     },
     /* ---------- 生産開始・リセット ---------- */
     _startProduction: function () {
@@ -509,6 +505,18 @@
       const applyOneHit = (id) => {
         const cell = s.grid[id];
         if (!cell || !cell.included) return;
+
+        // 本会心（critTargetに到達済み）のマスへの追撃はmiss扱いとし、変化させない
+        if (cell.critTarget != null && cell.current >= cell.critTarget) {
+          detailParts.push('(' + (cell.r + 1) + ',' + (cell.c + 1) + ')miss（本会心済み）');
+          cell.glow = false;
+          cell.flashType = 'miss';
+          cell.popup = { val: null, crit: false, miss: true, key: Date.now() + '_' + Math.random() };
+          if (this._flashTimers[id]) clearTimeout(this._flashTimers[id]);
+          this._flashTimers[id] = setTimeout(() => { this._clearCellFx(id); }, 850);
+          return;
+        }
+
         const glowBonus = cell.glow;
         const critMultiplier = 1 + (skill.critUp ? 6 : 0) + (critTurnActive ? 4 : 0) + (glowBonus ? 4 : 0);
         const thisCritChance = useHepha ? 100 : Math.min(100, baseCrit * critMultiplier);
@@ -535,15 +543,11 @@
           setTimeout(() => { s.critBanner = false; this._renderAll(); }, 700);
         }
         if (this._flashTimers[id]) clearTimeout(this._flashTimers[id]);
-        this._flashTimers[id] = setTimeout(() => {
-          const c = s.grid[id];
-          if (c) { c.flashType = null; c.popup = null; }
-          this._renderAll();
-        }, 850);
+        this._flashTimers[id] = setTimeout(() => { this._clearCellFx(id); }, 850);
       };
 
       if (skill.target === 'midare') {
-        targets.forEach((id, i) => setTimeout(() => { applyOneHit(id); this._renderAll(); }, i * 300));
+        targets.forEach((id, i) => setTimeout(() => { applyOneHit(id); this._patchCell(id); }, i * 300));
       } else {
         targets.forEach(id => applyOneHit(id));
       }
@@ -690,11 +694,7 @@
         cell.flashType = inp.crit ? 'crit' : 'normal';
         cell.popup = { val: delta, crit: !!inp.crit, key: Date.now() + '_' + Math.random() };
         if (this._flashTimers[id]) clearTimeout(this._flashTimers[id]);
-        this._flashTimers[id] = setTimeout(() => {
-          const c = s.grid[id];
-          if (c) { c.flashType = null; c.popup = null; }
-          this._renderAll();
-        }, 850);
+        this._flashTimers[id] = setTimeout(() => { this._clearCellFx(id); }, 850);
       });
       if (anyCrit) { s.critBanner = true; setTimeout(() => { s.critBanner = false; this._renderAll(); }, 700); }
       s.conc = Math.max(0, s.conc - skill.cost);
@@ -726,7 +726,8 @@
       const uid = 'preset_' + Date.now() + '_' + Math.floor(Math.random() * 100000);
       const preset = {
         id: uid, name: s.presetName.trim(), savedAt: new Date().toISOString(),
-        level: s.level, hammerName: s.hammerName, hammerStar: s.hammerStar, ingotKey: s.ingotKey, grid: cleanGrid
+        level: s.level, hammerName: s.hammerName, hammerStar: s.hammerStar, ingotKey: s.ingotKey,
+        kotsuMastered: !!s.kotsuMastered, grid: cleanGrid
       };
       s.presets.unshift(preset);
       const ok = this._savePresetsToStorage();
@@ -750,7 +751,8 @@
         }
       });
       s.level = p.level; s.hammerName = p.hammerName || ''; s.hammerStar = p.hammerStar || 0;
-      s.ingotKey = p.ingotKey || 'none'; s.grid = restored; s.shapeLocked = false;
+      s.ingotKey = p.ingotKey || 'none'; s.kotsuMastered = !!p.kotsuMastered;
+      s.grid = restored; s.shapeLocked = false;
       s.presetStatus = '「' + p.name + '」を読み込みました';
       this._saveLevel();
       this._renderAll();
@@ -801,6 +803,7 @@
         .kaji-cell.glow { border-color:#7fd4ff; box-shadow:0 0 18px 3px #7fd4ff; }
         .kaji-cell.flash-normal { border-color:#f0c452; background:#3a2c12; box-shadow:0 0 18px 3px #f0c452; transform:scale(1.06); }
         .kaji-cell.flash-crit { border-color:#ff5b3d; background:#3a1712; box-shadow:0 0 28px 6px #ff5b3d; transform:scale(1.12); }
+        .kaji-cell.flash-miss { border-color:#6b6058; background:#2a2622; }
         .kaji-cell-num { font-size:14px; font-weight:700; }
         .kaji-cell-zone { font-size:8px; color:#a89a8a; }
         .kaji-cell-crit { font-size:8px; font-weight:700; }
@@ -898,6 +901,63 @@
       return '<button class="kaji-tab-btn' + active + '" data-action="tab" data-tab="' + id + '">' + label + '</button>';
     },
 
+    // 1マス分のclass/innerHTMLを生成する共通関数（_renderGridと_patchCellの双方から利用）
+    _cellMarkup: function (id, opts) {
+      opts = opts || {};
+      const s = this.state;
+      const cell = s.grid[id];
+      const previewIds = opts.previewIds || [];
+      const classes = ['kaji-cell'];
+      if (cell.included) classes.push('included');
+      if (previewIds.indexOf(id) !== -1) classes.push('preview');
+      if (cell.glow) classes.push('glow');
+      if (cell.flashType === 'normal') classes.push('flash-normal');
+      if (cell.flashType === 'crit') classes.push('flash-crit');
+      if (cell.flashType === 'miss') classes.push('flash-miss');
+      let inner = '';
+      if (cell.popup) {
+        if (cell.popup.miss) {
+          inner += '<div class="kaji-popup" style="color:#a89a8a;font-size:15px;">MISS</div>';
+        } else {
+          const color = cell.popup.crit ? '#ff5b3d' : '#f0c452';
+          const size = cell.popup.crit ? '22px' : '17px';
+          inner += '<div class="kaji-popup" style="color:' + color + ';font-size:' + size + ';">' +
+            (cell.popup.crit ? '会心！' : '') + '+' + cell.popup.val + '</div>';
+        }
+      }
+      if (cell.included) {
+        inner += '<div class="kaji-cell-num">' + cell.current + '</div>';
+        if (cell.zoneMin != null) inner += '<div class="kaji-cell-zone">' + cell.zoneMin + '〜' + cell.zoneMax + '</div>';
+        if (cell.critHit) inner += '<div class="kaji-cell-crit" style="color:' + (cell.flashType === 'crit' ? '#ff5b3d' : '#f0c452') + ';">会心！</div>';
+        if (cell.glow && !cell.critHit) inner += '<div style="font-size:9px;color:#7fd4ff;">発光中</div>';
+        if (previewIds.indexOf(id) !== -1) inner += '<div style="font-size:9px;color:#5aa8ff;">対象</div>';
+      } else if (opts.selectMode) {
+        inner += '<div style="font-size:10px;">クリックで選択</div>';
+      }
+      return { classes: classes, inner: inner };
+    },
+
+    // みだれ打ち等、1ヒットごとの更新をフル再描画せず該当マスのDOMだけ差し替える
+    // （フル再描画すると他マスの表示中ポップアップのCSSアニメーションが再生し直され、
+    //   実際のヒット数より多く「発火」して見える不具合の対策）
+    _patchCell: function (id, opts) {
+      if (!this._container) { this._renderAll(); return; }
+      const nodes = this._container.querySelectorAll('[data-cell-id="' + id + '"]');
+      if (!nodes.length) { this._renderAll(); return; }
+      const built = this._cellMarkup(id, opts || {});
+      nodes.forEach(node => {
+        node.className = built.classes.join(' ');
+        node.innerHTML = built.inner;
+      });
+    },
+
+    // ヒット演出（発光・フラッシュ・ポップアップ）を該当マスだけクリアする
+    _clearCellFx: function (id) {
+      const cell = this.state.grid[id];
+      if (cell) { cell.flashType = null; cell.popup = null; }
+      this._patchCell(id);
+    },
+
     _renderGrid: function (opts) {
       opts = opts || {};
       const s = this.state;
@@ -907,31 +967,9 @@
       for (let r = 0; r < ROWS; r++) {
         for (let c = 0; c < COLS; c++) {
           const id = cellId(r, c);
-          const cell = s.grid[id];
-          const classes = ['kaji-cell'];
-          if (cell.included) classes.push('included');
-          if (previewIds.indexOf(id) !== -1) classes.push('preview');
-          if (cell.glow) classes.push('glow');
-          if (cell.flashType === 'normal') classes.push('flash-normal');
-          if (cell.flashType === 'crit') classes.push('flash-crit');
-          let inner = '';
-          if (cell.popup) {
-            const color = cell.popup.crit ? '#ff5b3d' : '#f0c452';
-            const size = cell.popup.crit ? '22px' : '17px';
-            inner += '<div class="kaji-popup" style="color:' + color + ';font-size:' + size + ';">' +
-              (cell.popup.crit ? '会心！' : '') + '+' + cell.popup.val + '</div>';
-          }
-          if (cell.included) {
-            inner += '<div class="kaji-cell-num">' + cell.current + '</div>';
-            if (cell.zoneMin != null) inner += '<div class="kaji-cell-zone">' + cell.zoneMin + '〜' + cell.zoneMax + '</div>';
-            if (cell.critHit) inner += '<div class="kaji-cell-crit" style="color:' + (cell.flashType === 'crit' ? '#ff5b3d' : '#f0c452') + ';">会心！</div>';
-            if (cell.glow && !cell.critHit) inner += '<div style="font-size:9px;color:#7fd4ff;">発光中</div>';
-            if (previewIds.indexOf(id) !== -1) inner += '<div style="font-size:9px;color:#5aa8ff;">対象</div>';
-          } else if (opts.selectMode) {
-            inner += '<div style="font-size:10px;">クリックで選択</div>';
-          }
+          const built = this._cellMarkup(id, opts);
           const actionAttr = clickAction ? ' data-action="' + clickAction + '" data-r="' + r + '" data-c="' + c + '"' : '';
-          html += '<div class="' + classes.join(' ') + '"' + actionAttr + '>' + inner + '</div>';
+          html += '<div class="' + built.classes.join(' ') + '" data-cell-id="' + id + '"' + actionAttr + '>' + built.inner + '</div>';
         }
       }
       html += '</div>';
@@ -1157,7 +1195,8 @@
         rows += '<div>(' + (b.r + 1) + ',' + (b.c + 1) + ')　結果:' + b.current + '　目標:' + b.target + '　誤差:' + b.error + '</div>';
       });
       return '<div style="margin-top:10px;padding:10px;background:#2f2721;border-radius:8px;">' +
-        '<div>誤差合計：<b>' + fg.totalError + '</b>（' + fg.cellCount + 'マス）→ 結果：<b style="color:#f0c452;">' + esc(fg.grade) + '</b></div>' +
+        '<div>誤差：<b>' + fg.totalError + '</b></div>' +
+        '<div>星：<b style="color:#f0c452;">' + esc(fg.grade) + '</b></div>' +
         '<div style="margin-top:6px;font-size:11px;color:#a89a8a;display:flex;flex-direction:column;gap:2px;">' + rows + '</div></div>';
     },
 
@@ -1285,13 +1324,6 @@
           '<div class="kaji-panel" style="min-width:320px;">' +
             '<div class="kaji-section-title">今回のアクション履歴</div>' +
             '<div style="max-height:300px;overflow-y:auto;">' + logRows + '</div>' +
-          '</div>' +
-          '<div class="kaji-panel" style="min-width:320px;">' +
-            '<div class="kaji-section-title">このシミュレーターについて</div>' +
-            '<div style="font-size:12px;color:#a89a8a;line-height:1.6;">' +
-              '職人レベル・道具の選択はブラウザに保存され、次回起動時にも保持されます。<br>' +
-              'プリセット（形＋道具＋地金）は「② グリッド作成」タブの一番下から保存・読込できます。' +
-            '</div>' +
           '</div>' +
         '</div>'
       );
