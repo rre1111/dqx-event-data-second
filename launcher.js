@@ -1,5 +1,5 @@
 // ========== DQXTools ランチャー ==========
-const APP_VERSION = '1.0.0β';
+const APP_VERSION = '1.1.6s';
 window.LAUNCHER_VERSION = APP_VERSION;
 
 // ランチャー読み込み完了を通知（index.html 側が受信してバージョン確認を行う）
@@ -123,7 +123,6 @@ window.DQX_BG_CHECK_PROMISE = (function() {
         { id: 'versions', url: './tools/version_selector.js' },
         { id: 'help',     url: './tools/help.js'             },
         { id: 'settings', url: './tools/settings.js'         },
-        { id: 'kaji',     url: './tools/kaji.js'             },
         { id: 'install',  url: './tools/install.js'          },
     ];
 
@@ -488,9 +487,6 @@ const DQXTools = {
             'dqx_bg_fixed_reset_notified_date',
             'dqx_bg_check_date',
             'dqx_bg_badges',
-            // Kaji シミュレーター用保存データ
-            'dqx_kaji_level',
-            'dqx_kaji_presets_v1',
             // 傭兵ログトラッカー：クラッシュ復旧用セッション保存
             'dqx_expm_session',
             'dqx_expm_active',
@@ -581,6 +577,12 @@ const DQXTools = {
                     } catch (e) {
                         console.warn('Invalid dqx_visible_tools in localStorage', e);
                     }
+                } else {
+                    // 表示設定が未保存（初回起動・カード編集で一度も触っていない）の場合は
+                    // defaultHidden なツール（検証中の鍛冶シミュレーター等）をデフォルトの
+                    // 表示対象から除外する。ユーザーがカード編集で明示的にONにするまでは
+                    // ホームカードに出さない。
+                    toolEntries = toolEntries.filter(([, tool]) => !tool.defaultHidden);
                 }
             }
         } catch (e) {
@@ -921,6 +923,12 @@ const DQXTools = {
             const t = this.tools[id];
             return !(t.hideInMenu && !t.requiresToken);
         }).sort();
+        // 表示設定が未保存の場合に使う初期選択状態（defaultHidden なツールは除く）
+        const defaultVisibleIds = allIds.filter((id) => !this.tools[id].defaultHidden);
+        // defaultHidden を持つツールが1つでもある場合、「全部チェック＝設定削除（無条件全表示に戻す）」
+        // をしてしまうと、次回起動時に defaultHidden 判定が働いて再び非表示化されてしまう
+        // （チェックを入れた操作が保存されない）ため、その場合は必ず明示的に保存する。
+        const hasDefaultHidden = allIds.some((id) => this.tools[id].defaultHidden);
 
         const renderList = () => {
             listContainer.innerHTML = '';
@@ -930,7 +938,7 @@ const DQXTools = {
 
                 const chk = document.createElement('input');
                 chk.type    = 'checkbox';
-                chk.checked = visible ? visible.includes(id) : true;
+                chk.checked = visible ? visible.includes(id) : defaultVisibleIds.includes(id);
 
                 const label = document.createElement('div');
                 label.className = 'manage-label';
@@ -938,7 +946,7 @@ const DQXTools = {
 
                 chk.onchange = () => {
                     if (chk.checked) {
-                        if (!visible) visible = allIds.slice();
+                        if (!visible) visible = defaultVisibleIds.slice();
                         if (!visible.includes(id)) visible.push(id);
                     } else {
                         const checkedCount = listContainer.querySelectorAll('input[type="checkbox"]:checked').length;
@@ -949,9 +957,9 @@ const DQXTools = {
                             }
                             return;
                         }
-                        visible = (visible || allIds.slice()).filter((x) => x !== id);
+                        visible = (visible || defaultVisibleIds.slice()).filter((x) => x !== id);
                     }
-                    if (visible && visible.length === allIds.length) {
+                    if (!hasDefaultHidden && visible && visible.length === allIds.length) {
                         localStorage.removeItem(STORAGE_KEYS.VISIBLE_TOOLS);
                     } else {
                         localStorage.setItem(STORAGE_KEYS.VISIBLE_TOOLS, JSON.stringify(visible || []));
@@ -1331,13 +1339,9 @@ const DQXTools = {
             this.removeOldToolScripts(tool.url, tool.ver);
             await this.loadScript(tool.url, tool.renderFn, tool.ver);
 
-            const renderFnParts = tool.renderFn
-                .split('.');
-            const fn = renderFnParts
+            const fn = tool.renderFn
+                .split('.')
                 .reduce((obj, key) => obj && obj[key], window);
-            const contextObj = renderFnParts.length > 1
-                ? renderFnParts.slice(0, -1).reduce((obj, key) => obj && obj[key], window)
-                : window;
 
             loadingDiv.remove();
 
@@ -1346,7 +1350,7 @@ const DQXTools = {
                 const newToolContainer   = document.createElement('div');
                 newToolContainer.id      = 'dqx-tool-container';
                 this.container.appendChild(newToolContainer);
-                fn.call(contextObj, '#dqx-tool-container');
+                fn('#dqx-tool-container');
                 this.currentTool = toolId;
                 this.renderToolMenu();
             } else {

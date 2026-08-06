@@ -13,7 +13,7 @@
 //   完全バイパス（キャッシュしない・読まない）:
 //     - testtool*.js, api.github.com         ← 認証必須のため常時オンライン取得
 
-const CACHE_VERSION = '1.0.0β';
+const CACHE_VERSION = '1.1.6s';
 const CACHE_NAME = `dqx-tools-${CACHE_VERSION}`;
 
 const PRECACHE_URLS = [
@@ -26,10 +26,10 @@ const PRECACHE_URLS = [
     './release-notes.json',
     './tools/checker.js',
     './tools/expmercenary.js',
+    './tools/kaji.js',
     './tools/version_selector.js',
     './tools/help.js',
     './tools/settings.js',
-    './tools/kaji.js',
     './tools/install.js',
     // 上記 tools/*.js はオフライン初回インストール用の保険。
     // 実際の実行時リクエストは launcher.js が ?v=<tools-manifest.jsonのver> を

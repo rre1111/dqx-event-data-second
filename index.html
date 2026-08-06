@@ -174,24 +174,18 @@
         }
     </style>
     <script>
-        window.HTML_VERSION = '1.0.0β';
+        window.HTML_VERSION = '1.1.6s';
 
         window.RELOAD_KEY  = 'dqx_reload_count';
         window.MAX_RELOAD  = 2;
 
-        // ========== Pull to Refresh 禁止 ==========
-        document.addEventListener('DOMContentLoaded', function() {
-            let touchStartY = 0;
-            document.addEventListener('touchstart', (e) => {
-                touchStartY = e.touches[0].clientY;
-            }, { passive: false });
-            document.addEventListener('touchmove', (e) => {
-                const touchY = e.touches[0].clientY;
-                if (touchY > touchStartY && window.scrollY === 0) {
-                    e.preventDefault();
-                }
-            }, { passive: false });
-        });
+        // Pull to Refresh 禁止は <head> 側の DQX_IS_BROWSER_MODE 判定つき
+        // touchmove ハンドラ（スクロール可能な祖先要素を辿って判定するもの）
+        // に一本化済み。ここにあった無条件版は、アプリ（standalone）表示時
+        // にも常に発動してしまい、かつスクロール可能な子要素の判定を持たず
+        // window.scrollY（ページ全体の位置）しか見ていなかったため、
+        // ツール内スクロール領域で下端まで行った後に上へ戻る操作まで誤って
+        // 抑制していた。この重複ハンドラが本来の症状の原因だったため削除。
 
         async function clearDqxCachesAndReload() {
             if ('caches' in window) {
@@ -567,9 +561,9 @@ const FALLBACK_TOOLS = [
     { id: 'Checker',  name: '進捗チェッカー',        icon: '📋', desc: '日課・週課・隔週・月課',              url: './tools/checker.js',          renderFn: 'Checker.render' },
     { id: 'exp-m',    name: '傭兵ログトラッカー',              icon: '⚔️', desc: '経験値計算<br>タイマー', url: './tools/expmercenary.js',      renderFn: 'Expmercenary.render' },
     { id: 'versions', name: '傭兵ログトラッカー<br>旧ver',     icon: '📜', desc: '旧verセレクタ',          url: './tools/version_selector.js',  renderFn: 'VersionSelector.render' },
+    { id: 'kaji',     name: '鍛冶職人シミュレーター',          icon: '🔨', desc: '鍛冶シミュレーター',     url: './tools/kaji.js',              renderFn: 'Kaji.render', defaultHidden: true },
     { id: 'help',     name: '取扱説明書',                      icon: '📖', desc: '使い方<br>Q&A',          url: './tools/help.js',              renderFn: 'Help.render' },
     { id: 'settings', name: '設定',                            icon: '⚙️', desc: 'キャッシュ<br>フィードバック', url: './tools/settings.js',     renderFn: 'Settings.render' },
-    { id: 'kaji',      name: '鍛冶職人シミュレーター',      icon: '🔨', desc: '鍛冶シミュレーター',          url: './tools/kaji.js',          renderFn: 'Kaji.render' },
     { id: 'install',  name: 'アプリの<br>使い方',              icon: '📲', desc: 'ホーム画面に<br>追加する方法', url: './tools/install.js',      renderFn: 'Install.render', hideInMenu: true }
 ];
 
@@ -588,13 +582,14 @@ function registerAllTools(manifestData) {
 
     toolList.forEach((tool) => {
         DQXTools.register(tool.id, {
-            name:       tool.name,
-            icon:       tool.icon,
-            desc:       tool.desc,
-            url:        tool.url,
-            renderFn:   tool.renderFn,
-            ver:        tool.ver,
-            hideInMenu: !!tool.hideInMenu
+            name:          tool.name,
+            icon:          tool.icon,
+            desc:          tool.desc,
+            url:           tool.url,
+            renderFn:      tool.renderFn,
+            ver:           tool.ver,
+            hideInMenu:    !!tool.hideInMenu,
+            defaultHidden: !!tool.defaultHidden
         });
     });
 

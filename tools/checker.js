@@ -1015,10 +1015,27 @@
     const activeEvents = await collectActiveEvents(exportedAt);
     const eventById = new Map(activeEvents.map(ev => [ev.id, ev]));
 
-    // ---- ここから完全上書き：既存のdqx_名前空間を全消去 ----
+    // ---- ここから完全上書き：進捗チェッカーが管理するキーのみを対象に消去 ----
+    // 以前は 'dqx_' 接頭辞の全キーを一括消去しており、ランチャー側の
+    // ダークモード・カード並び順・表示ツール設定等まで意図せず巻き込んでいた。
+    // ここではチェッカー自身が STORAGE_KEYS で管理しているキー（完全一致／接頭辞）
+    // のみを対象にする。
+    const CHECKER_KEY_PREFIXES = [
+      STORAGE_KEYS.CHECK_PREFIX,  // 'dqx_check_final10_' + taskKey + '_' + charId
+      STORAGE_KEYS.LIM_CHECKS,    // 'dqx_limited_checks_v3' + '_' + eventId + '_' + charId + '_' + periodKey
+    ];
+    const CHECKER_EXACT_KEYS = [
+      STORAGE_KEYS.CHARS,
+      STORAGE_KEYS.DISABLED,
+      STORAGE_KEYS.HIDDEN,
+      STORAGE_KEYS.CUSTOM_EVENTS,
+    ];
     for (let i = localStorage.length - 1; i >= 0; i--) {
       const k = localStorage.key(i);
-      if (k && k.startsWith('dqx_')) localStorage.removeItem(k);
+      if (!k) continue;
+      const matchPrefix = CHECKER_KEY_PREFIXES.some(p => k.startsWith(p));
+      const matchExact  = CHECKER_EXACT_KEYS.includes(k);
+      if (matchPrefix || matchExact) localStorage.removeItem(k);
     }
     characters  = [];
     nextCharId  = 1;
@@ -1866,7 +1883,7 @@ body { font-family: 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif; background
 /* 分割テーブルレイアウト */
 #tableWrapper { display: flex; align-items: flex-start; width: 100%; overflow: hidden; }
 #leftPanel    { flex-shrink: 0; overflow: hidden; border-right: 2px solid #94a8c2; background: inherit; position: relative; z-index: 5; }
-#rightPanel   { flex: 1; overflow-x: auto; overflow-y: hidden; }
+#rightPanel   { flex: 1; overflow-x: auto; overflow-y: hidden; overscroll-behavior-x: contain; }
 #leftTable, #rightTable { border-collapse: collapse; font-size: 0.7rem; }
 #leftTable  { width: 100%; }
 #rightTable { width: max-content; min-width: 100%; }

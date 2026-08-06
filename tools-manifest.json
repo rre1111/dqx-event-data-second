@@ -1,7 +1,7 @@
 {
   "_comment": "起動時オンラインチェックで参照される正データ。ツール追加・バージョン更新時はここを必ず更新してください。",
-  "launcherVersion": "1.0.0β",
-  "updatedAt": "2026-07-24",
+  "launcherVersion": "1.1.6s",
+  "updatedAt": "2026-08-04",
   "tools": [
     {
       "id": "Checker",
@@ -10,7 +10,7 @@
       "desc": "日課・週課・隔週・月課",
       "url": "./tools/checker.js",
       "renderFn": "Checker.render",
-      "ver": "1.2.1s",
+      "ver": "1.2.3s",
       "cache": true
     },
     {
@@ -30,8 +30,19 @@
       "desc": "旧verセレクタ",
       "url": "./tools/version_selector.js",
       "renderFn": "VersionSelector.render",
-      "ver": "1.1.2s",
+      "ver": "1.2.0s",
       "cache": true
+    },
+    {
+      "id": "kaji",
+      "name": "鍛冶職人シミュレーター",
+      "icon": "🔨",
+      "desc": "鍛冶シミュレーター",
+      "url": "./tools/kaji.js",
+      "renderFn": "Kaji.render",
+      "ver": "1.0.5",
+      "cache": true,
+      "defaultHidden": true
     },
     {
       "id": "help",
@@ -51,16 +62,6 @@
       "url": "./tools/settings.js",
       "renderFn": "Settings.render",
       "ver": "1.1.2s",
-      "cache": true
-    },
-    {
-      "id": "kaji",
-      "name": "鍛冶職人シミュレーター",
-      "icon": "🔨",
-      "desc": "鍛冶シミュレーター",
-      "url": "./tools/kaji.js",
-      "renderFn": "Kaji.render",
-      "ver": "1.0.5",
       "cache": true
     },
     {
