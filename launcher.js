@@ -1,5 +1,5 @@
 // ========== DQXTools ランチャー ==========
-const APP_VERSION = '1.1.6s';
+const APP_VERSION = '1.1.7s';
 window.LAUNCHER_VERSION = APP_VERSION;
 
 // ランチャー読み込み完了を通知（index.html 側が受信してバージョン確認を行う）
@@ -545,6 +545,41 @@ const DQXTools = {
         this.updateContainerPadding();
     },
 
+    // show=クエリパラメータ／dqx_visible_tools（カード編集での表示設定）／
+    // defaultHidden（検証中ツールの初期非表示）を考慮して、渡された
+    // [id, tool] エントリ配列をユーザーの現在の表示設定でフィルタする。
+    // ホーム画面（showLauncher）とツール切り替えバー（renderToolMenu）の
+    // 両方で表示対象が食い違わないよう、判定ロジックをここに一本化する。
+    filterByUserVisibility: function(entries) {
+        try {
+            const params    = new URLSearchParams(window.location.search);
+            const showParam = params.get('show');
+            if (showParam) {
+                const wanted = showParam.split(',').map((s) => s.trim()).filter(Boolean);
+                return entries.filter(([id]) => wanted.includes(id));
+            }
+            const stored = localStorage.getItem(STORAGE_KEYS.VISIBLE_TOOLS);
+            if (stored) {
+                try {
+                    const wanted = JSON.parse(stored);
+                    if (Array.isArray(wanted) && wanted.length > 0) {
+                        return entries.filter(([id]) => wanted.includes(id));
+                    }
+                } catch (e) {
+                    console.warn('Invalid dqx_visible_tools in localStorage', e);
+                }
+                return entries;
+            }
+            // 表示設定が未保存（初回起動・カード編集で一度も触っていない）の場合は
+            // defaultHidden なツール（検証中の鍛冶シミュレーター等）をデフォルトの
+            // 表示対象から除外する。
+            return entries.filter(([, tool]) => !tool.defaultHidden);
+        } catch (e) {
+            console.warn('Invalid show param', e);
+            return entries;
+        }
+    },
+
     showLauncher: function() {
         const savedOrder = localStorage.getItem(STORAGE_KEYS.CARD_ORDER);
         const order      = savedOrder ? JSON.parse(savedOrder) : null;
@@ -559,35 +594,7 @@ const DQXTools = {
         let toolEntries = Object.entries(this.tools).filter(([, tool]) => {
             return !(tool.hideInMenu && !tool.testToolConfig);
         });
-
-        try {
-            const params    = new URLSearchParams(window.location.search);
-            const showParam = params.get('show');
-            if (showParam) {
-                const wanted = showParam.split(',').map((s) => s.trim()).filter(Boolean);
-                toolEntries  = toolEntries.filter(([id]) => wanted.includes(id));
-            } else {
-                const stored = localStorage.getItem(STORAGE_KEYS.VISIBLE_TOOLS);
-                if (stored) {
-                    try {
-                        const wanted = JSON.parse(stored);
-                        if (Array.isArray(wanted) && wanted.length > 0) {
-                            toolEntries = toolEntries.filter(([id]) => wanted.includes(id));
-                        }
-                    } catch (e) {
-                        console.warn('Invalid dqx_visible_tools in localStorage', e);
-                    }
-                } else {
-                    // 表示設定が未保存（初回起動・カード編集で一度も触っていない）の場合は
-                    // defaultHidden なツール（検証中の鍛冶シミュレーター等）をデフォルトの
-                    // 表示対象から除外する。ユーザーがカード編集で明示的にONにするまでは
-                    // ホームカードに出さない。
-                    toolEntries = toolEntries.filter(([, tool]) => !tool.defaultHidden);
-                }
-            }
-        } catch (e) {
-            console.warn('Invalid show param', e);
-        }
+        toolEntries = this.filterByUserVisibility(toolEntries);
 
         if (order) {
             toolEntries.sort((a, b) => {
@@ -1061,7 +1068,9 @@ const DQXTools = {
     renderToolMenu: function() {
         const isMobile = this.isMobile();
 
-        const menuEntries = Object.entries(this.tools).filter(([, tool]) => !tool.hideInMenu);
+        const menuEntries = this.filterByUserVisibility(
+            Object.entries(this.tools).filter(([, tool]) => !tool.hideInMenu)
+        );
         document.getElementById('tool-menu-bar')?.remove();
         document.getElementById('sidebar-float-toggle')?.remove();
 
@@ -1339,9 +1348,14 @@ const DQXTools = {
             this.removeOldToolScripts(tool.url, tool.ver);
             await this.loadScript(tool.url, tool.renderFn, tool.ver);
 
-            const fn = tool.renderFn
-                .split('.')
-                .reduce((obj, key) => obj && obj[key], window);
+            // renderFn（例: "Kaji.render"）からメソッドと呼び出し元オブジェクトを分離する。
+            // 従来は関数参照だけを取り出して `fn('#dqx-tool-container')` のように
+            // 素の関数呼び出しをしていたため、render内で `this` を参照するツール
+            // （kaji.js 等）では this が undefined になりエラーになっていた。
+            const renderPath   = tool.renderFn.split('.');
+            const methodName   = renderPath.pop();
+            const thisContext  = renderPath.reduce((obj, key) => obj && obj[key], window);
+            const fn           = thisContext && thisContext[methodName];
 
             loadingDiv.remove();
 
@@ -1350,7 +1364,7 @@ const DQXTools = {
                 const newToolContainer   = document.createElement('div');
                 newToolContainer.id      = 'dqx-tool-container';
                 this.container.appendChild(newToolContainer);
-                fn('#dqx-tool-container');
+                fn.call(thisContext, '#dqx-tool-container');
                 this.currentTool = toolId;
                 this.renderToolMenu();
             } else {

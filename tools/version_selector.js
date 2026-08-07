@@ -37,13 +37,24 @@
     let selectedUrl = '';
     let currentContainerSelector = '';
 
-    // かつてver1.4.1のみ、ダークモード切り替えをツール内で自己完結的にlocalStorageへ
-    // 保存する実装になっていたため、そのバージョンだけsandboxにallow-same-originが
-    // 必要だった。ver141.html側の当該実装（トグルボタン・localStorage連携）を
-    // 削除したため、現在このリストに該当するバージョンはない。
-    // 将来、同様に同一オリジン権限が必要なアーカイブを追加する場合はここに追記する。
-    // allow-same-originとallow-scriptsの同時指定はsandboxの隔離を実質無効化するため、
-    // 必要なもの以外はallow-scriptsのみに絞ること。
+    // ── sandbox の allow-same-origin 付与方針 ──────────────────────────────
+    // module型（ver210/230/240/155b等）は tools/expmercenary.js 系と同じ実装
+    // 系譜のため、localStorage（LAP通知設定など）に依存する機能を持つ。
+    // allow-same-originなしのiframe（opaque origin）ではlocalStorageアクセスが
+    // 例外を投げ、render()がDOM構築前に停止して画面が真っ白になる不具合が
+    // 実際に発生したため、module型には一律allow-same-originを付与する。
+    //
+    // これは「old_tools/module_shell.html」の外部URL差し替え可能な読み込み
+    // 経路（?script=任意URL）が既に廃止され、iframeのsrcdocへ直接埋め込む
+    // 方式に変わったことが前提。読み込み対象は version_selector.js の
+    // VERSIONS 配列で固定されており、外部から差し替えられないため、
+    // allow-same-originを付与しても「攻撃者の任意コードがその権限を持つ」
+    // という経路は生じない。
+    //
+    // html型（はてなブログ時代のアーカイブ）は、ver141.html のダークモード
+    // 自己完結実装（トグルボタン・localStorage連携）を削除済みのため
+    // 現状は不要。将来、html型でも同一オリジン権限が必要なアーカイブを
+    // 追加する場合はここに追記する。
     const NEEDS_SAME_ORIGIN = [];
 
     function findVersion(url) {
@@ -51,7 +62,9 @@
     }
 
     function getSandboxAttr(url) {
-        const needsSameOrigin = NEEDS_SAME_ORIGIN.some((name) => url.endsWith(name));
+        const version = findVersion(url);
+        const needsSameOrigin = NEEDS_SAME_ORIGIN.some((name) => url.endsWith(name))
+            || (version && version.type === 'module');
         return needsSameOrigin ? 'allow-same-origin allow-scripts' : 'allow-scripts';
     }
 

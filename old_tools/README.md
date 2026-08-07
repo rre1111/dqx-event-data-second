@@ -22,8 +22,8 @@ iframe経由で参照され、ユーザーが過去バージョンの見た目�
   ver1.4.5以降はブログヘッダー側／親ページのダークモード制御に追従する設計に移行済み）
   を持っていましたが、トグルボタンおよびlocalStorage連携部分のみ削除しました。
   配色定義（`.dark-mode`系CSS）自体はカラーサンプルとして資料的価値があるため維持しています。
-  この変更に伴い、`iframe`サンドボックス化時に必要だった`allow-same-origin`の特例
-  （`version_selector.js`の`NEEDS_SAME_ORIGIN`配列）も不要になり、削除しました。
+  この変更単体では、ver141.html自体はiframeサンドボックスの`allow-same-origin`
+  なしで動作するようになっています（html型はNEEDS_SAME_ORIGIN配列による個別管理）。
 - **`ver210.js` / `ver230.js` / `ver240.js` / `ver155b.js`**：末尾のグローバル公開名
   （`global.Expmercenary = {...}`）を、現行版（`tools/expmercenary.js`が公開する
   `window.Expmercenary`）や他の旧バージョンと重複しないよう、`ExpmercenaryV210`
@@ -31,10 +31,17 @@ iframe経由で参照され、ユーザーが過去バージョンの見た目�
   これにより、旧`old_tools/module_shell.html`（外部から`?script=`で読み込み対象を
   任意指定できてしまい、同一オリジン権限で任意コードが実行され得た）を廃止し、
   `version_selector.js`がiframeの`srcdoc`に直接埋め込む方式に変更しています。
+  - なお、module型は`localStorage`（LAP通知設定など）に依存する機能を持つため、
+    サンドボックスに`allow-same-origin`を付与していない状態だとlocalStorageアクセスで
+    例外が発生し、render()がDOM構築前に停止して画面が真っ白になる不具合が実際に
+    発生しました。`module_shell.html`廃止により読み込み対象がVERSIONS配列内に
+    固定され外部から差し替えられなくなったため、module型には一律
+    `allow-same-origin`を付与しています（`version_selector.js`の`getSandboxAttr`参照）。
 
 新しいバージョンをここに追加する場合：
 - module形式のJSは、グローバル公開名が既存のいずれとも重複しないことを確認し、
   `version_selector.js`の`VERSIONS`配列に`globalName`を含めて追記してください。
-- `localStorage`等の同一オリジン権限がどうしても必要な場合のみ、
+  module型には自動的に`allow-same-origin`が付与されます。
+- html形式のJSで`localStorage`等の同一オリジン権限がどうしても必要な場合のみ、
   `version_selector.js`の`NEEDS_SAME_ORIGIN`配列を更新してください
   （現状は該当バージョンなし）。
