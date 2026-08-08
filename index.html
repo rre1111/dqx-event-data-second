@@ -496,7 +496,8 @@
 
             // バッジ差分の再チェック（フルリロード不要・軽量）
             try {
-                if (typeof window.dqxRunBackgroundChecks === 'function') {
+                if (typeof window.dqxRunBackgroundChecks === 'function'
+                    && (!window.DQXTools || window.DQXTools.currentTool === null)) {
                     await window.dqxRunBackgroundChecks();
                     // ホーム画面表示中なら再描画してバッジを反映する
                     if (window.DQXTools && window.DQXTools.currentTool === null

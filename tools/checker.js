@@ -20,6 +20,33 @@
   const EVENTS_URL  = 'https://raw.githubusercontent.com/yuffy-1111/dqx-event-data/main/checker.json';
   const RESET_HOUR  = 6; // JST 毎日6時リセット
 
+  let cachedCheckerEvents = {
+    key: null,
+    events: [],
+  };
+
+  async function loadCheckerEvents(targetDate) {
+    const key = targetDate.getTime();
+    if (cachedCheckerEvents.key === key) {
+      return cachedCheckerEvents.events;
+    }
+
+    let events = [];
+    try {
+      const res = await fetch(EVENTS_URL, { cache: 'no-store' });
+      if (res.ok) {
+        const data = await res.json();
+        if (validateEventData(data)) events = data.events;
+      }
+    } catch (e) {
+      console.error('イベント取得失敗:', e);
+    }
+
+    cachedCheckerEvents.key = key;
+    cachedCheckerEvents.events = events;
+    return events;
+  }
+
   // タスクキーの順序（表示順と一致させている。リリース前のため自由に並び替え可）
   const TASK_KEY_ORDER = [
     'daily1', 'daily2', 'daily3', 'daily4', 'daily5',
@@ -1448,11 +1475,11 @@
 
 
 
-  async function renderDetailTable() {
+  async function renderDetailTable(targetDate) {
     const container = document.getElementById('detailTableContainer');
     if (!container) return;
 
-    const today = getJSTNow();
+    const today = targetDate;
     const rowStyle  = 'padding:5px 8px;border-bottom:1px solid #e2edf2;';
     const secStyle  = 'padding:6px 8px;background:#e9edf2;font-weight:bold;text-align:left;';
 
@@ -1469,16 +1496,8 @@
       html += `<tr><td style="${rowStyle}">${escapeHtml(name)}</td><td style="${rowStyle}">${escapeHtml(detail)}</td></tr>`;
     }
 
-    let events = [];
-    try {
-      const res = await fetch(EVENTS_URL, { cache: 'no-store' });
-      if (res.ok) {
-        const data = await res.json();
-        if (validateEventData(data)) {
-          events = data.events.filter(e => isEventActive(e, today));
-        }
-      }
-    } catch (e) { /* ネットワークエラーは無視 */ }
+    const allEvents = await loadCheckerEvents(targetDate);
+    const events = allEvents.filter(e => isEventActive(e, today));
 
     if (events.length) {
       html += `<tr class="detail-section-row"><td colspan="2" style="${secStyle}">▼ イベント</td></tr>`;
@@ -1601,18 +1620,8 @@
   }
 
   async function renderEventRows(leftTbody, rightTbody, targetDate) {
-    let events = [];
-    try {
-      const res = await fetch(EVENTS_URL, { cache: 'no-store' });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
-      if (validateEventData(data)) {
-        events = data.events.filter(e => isEventActive(e, targetDate));
-      }
-    } catch (e) {
-      console.error('イベント取得失敗:', e);
-      // 配信データの取得に失敗しても、手入力イベントは表示を継続する
-    }
+    const allEvents = await loadCheckerEvents(targetDate);
+    const events = allEvents.filter(e => isEventActive(e, targetDate));
 
     const customEvents = loadCustomEvents().filter(e => isEventActive(e, targetDate));
     const recurringEvents = getRecurringEvents(targetDate).filter(e => isEventActive(e, targetDate));
@@ -1849,12 +1858,9 @@
       rightTbody.appendChild(rRow);
     }
 
-    renderEventRows(leftTbody, rightTbody, targetDate).then(() => {
-      requestAnimationFrame(syncRowHeights);
-    });
-
-    requestAnimationFrame(syncRowHeights);
-    renderDetailTable();
+    renderEventRows(leftTbody, rightTbody, targetDate)
+      .then(() => renderDetailTable(targetDate))
+      .finally(() => requestAnimationFrame(syncRowHeights));
   }
 
   // ===== スタイル =====

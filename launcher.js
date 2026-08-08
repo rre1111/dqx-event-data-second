@@ -214,6 +214,9 @@ window.DQX_BG_CHECK_PROMISE = (function() {
     }
 
     async function runChecks() {
+        if (window.DQXTools && window.DQXTools.currentTool !== null) {
+            return window.DQX_CARD_BADGES;
+        }
         // 以前は「1日1回」に制限していたが、起動時スプラッシュを毎回表示する
         // 仕様に合わせ、こちらも毎回の起動時にチェックするよう変更。
         // （同日中に内容が更新された場合でもバッジに反映されるようにするため）
