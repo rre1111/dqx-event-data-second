@@ -499,7 +499,8 @@ const DQXTools = {
             if (!key) continue;
             const allowed = allowedLocal.includes(key)
                 || key.startsWith('dqx_check_final10_')
-                || key.startsWith('dqx_limited_checks_v3_');
+                || key.startsWith('dqx_limited_checks_v3_')
+                || key.startsWith('dqx_guide_seen_');
             if (!allowed) {
                 try {
                     localStorage.removeItem(key);
@@ -818,6 +819,13 @@ const DQXTools = {
                     localStorage.setItem(STORAGE_KEYS.CARD_ORDER, JSON.stringify(newOrder));
                 }
             });
+        }
+
+        // 初回のみ、ホーム画面の使い方ガイドを自動表示する
+        // （showGuide側で既読フラグ・多重起動を判定するため、resize等で
+        //   showLauncher()が再度呼ばれても実害はない）
+        if (this.currentTool === null) {
+            this.maybeShowHomeGuide();
         }
     },
 
@@ -1422,6 +1430,181 @@ const DQXTools = {
                 window[g].destroy();
             }
         });
+    },
+
+    // ========== 機能ガイド（スポットライト式ツアー） ==========
+    // steps: [{ selector, title, text }, ...]
+    // guideKey: localStorageの既読管理キー（例: 'dqx_guide_seen_home'）
+    // options.force: true の場合、既読フラグを無視して強制表示する（設定画面からの手動呼び出し用）
+    showGuide: function(steps, guideKey, options) {
+        options = options || {};
+        const force = !!options.force;
+        if (!Array.isArray(steps) || steps.length === 0) return;
+        if (!force) {
+            try {
+                if (localStorage.getItem(guideKey) === '1') return;
+            } catch (e) { /* noop */ }
+        }
+        // 多重起動防止（resize等で複数回呼ばれても二重表示しない）
+        if (document.getElementById('dqx-guide-overlay')) return;
+
+        let idx = 0;
+
+        const overlay = document.createElement('div');
+        overlay.id = 'dqx-guide-overlay';
+
+        const highlight = document.createElement('div');
+        highlight.id = 'dqx-guide-highlight';
+
+        const balloon = document.createElement('div');
+        balloon.id = 'dqx-guide-balloon';
+
+        const cleanup = () => {
+            window.removeEventListener('resize', reposition);
+            overlay.remove();
+            highlight.remove();
+            balloon.remove();
+        };
+
+        const finish = () => {
+            try { localStorage.setItem(guideKey, '1'); } catch (e) { /* noop */ }
+            cleanup();
+            if (window.dqxShowToast) {
+                window.dqxShowToast('ガイドは設定からいつでも見返せます', { duration: 4000 });
+            }
+        };
+
+        const reposition = () => {
+            const step = steps[idx];
+            if (!step) { finish(); return; }
+            const target = document.querySelector(step.selector);
+            if (!target) {
+                // 対象要素が見つからない場合は次のステップへ（全滅なら終了）
+                if (idx < steps.length - 1) { idx++; renderStep(); }
+                else finish();
+                return;
+            }
+            const rect = target.getBoundingClientRect();
+            const pad  = 8;
+            highlight.style.top    = (rect.top - pad) + 'px';
+            highlight.style.left   = (rect.left - pad) + 'px';
+            highlight.style.width  = (rect.width + pad * 2) + 'px';
+            highlight.style.height = (rect.height + pad * 2) + 'px';
+
+            // 吹き出し位置：対象の下に置けるならそこ、収まらなければ上に出す
+            const balloonWidth    = balloon.offsetWidth || 300;
+            const estimatedHeight = balloon.offsetHeight || 160;
+            let top = rect.bottom + pad + 12;
+            if (top + estimatedHeight > window.innerHeight - 10) {
+                top = Math.max(10, rect.top - pad - estimatedHeight - 12);
+            }
+            let left = rect.left + rect.width / 2 - balloonWidth / 2;
+            left = Math.max(10, Math.min(left, window.innerWidth - balloonWidth - 10));
+            balloon.style.top  = top + 'px';
+            balloon.style.left = left + 'px';
+
+            target.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        };
+
+        const renderStep = () => {
+            const step = steps[idx];
+            if (!step) { finish(); return; }
+
+            balloon.innerHTML = '';
+
+            const closeBtn = document.createElement('button');
+            closeBtn.className = 'dqx-guide-close-btn';
+            closeBtn.textContent = '✕';
+            closeBtn.setAttribute('aria-label', '閉じる');
+            closeBtn.onclick = finish;
+            balloon.appendChild(closeBtn);
+
+            const countEl = document.createElement('div');
+            countEl.className = 'dqx-guide-step-count';
+            countEl.textContent = `${idx + 1} / ${steps.length}`;
+            balloon.appendChild(countEl);
+
+            const titleEl = document.createElement('div');
+            titleEl.className = 'dqx-guide-title';
+            titleEl.textContent = step.title || '';
+            balloon.appendChild(titleEl);
+
+            const textEl = document.createElement('div');
+            textEl.className = 'dqx-guide-text';
+            textEl.textContent = step.text || '';
+            balloon.appendChild(textEl);
+
+            const actions = document.createElement('div');
+            actions.className = 'dqx-guide-actions';
+
+            if (idx === 0) {
+                const skipBtn = document.createElement('button');
+                skipBtn.className = 'dqx-guide-skip-btn';
+                skipBtn.textContent = 'スキップ';
+                skipBtn.onclick = finish;
+                actions.appendChild(skipBtn);
+            } else {
+                actions.appendChild(document.createElement('span'));
+            }
+
+            const actionsRight = document.createElement('div');
+            actionsRight.className = 'dqx-guide-actions-right';
+
+            if (idx > 0) {
+                const backBtn = document.createElement('button');
+                backBtn.className = 'dqx-guide-nav-btn';
+                backBtn.textContent = '戻る';
+                backBtn.onclick = () => { idx--; renderStep(); };
+                actionsRight.appendChild(backBtn);
+            }
+
+            const nextBtn = document.createElement('button');
+            nextBtn.className = 'dqx-guide-nav-btn dqx-guide-primary';
+            nextBtn.textContent = (idx === steps.length - 1) ? '完了' : '次へ';
+            nextBtn.onclick = () => {
+                if (idx === steps.length - 1) { finish(); return; }
+                idx++;
+                renderStep();
+            };
+            actionsRight.appendChild(nextBtn);
+
+            actions.appendChild(actionsRight);
+            balloon.appendChild(actions);
+
+            requestAnimationFrame(reposition);
+        };
+
+        window.addEventListener('resize', reposition);
+
+        document.body.appendChild(overlay);
+        document.body.appendChild(highlight);
+        document.body.appendChild(balloon);
+        renderStep();
+    },
+
+    // ホーム画面用ガイド（初回自動表示・設定画面からの再表示の両方で使う）
+    maybeShowHomeGuide: function(force) {
+        // 起動時ローディングオーバーレイが表示されている間はガイドを隠してしまうため、
+        // オーバーレイが消えるまで待ってから表示する。
+        if (document.getElementById('dqx-loading-overlay')) {
+            setTimeout(() => this.maybeShowHomeGuide(force), 300);
+            return;
+        }
+        const steps = [
+            { selector: '.home-grid',            title: 'ツール一覧',   text: 'ここをタップすると各ツールが開きます。カードは長押しして並び替えることもできます。' },
+            { selector: '#open-manage-link',     title: 'カード編集',   text: '表示するツールの選択ができます。' },
+            { selector: '#global-dark-toggle',   title: 'ダークモード', text: '画面全体の明るさを切り替えられます。' },
+            { selector: '#dqx-net-status',       title: '更新状況',     text: 'タップすると、ツールの更新状況や通信状況を確認できます。' },
+            { selector: '#footer-releasenotes-btn', title: 'リリースノート', text: '更新による変更内容はここから確認できます。' },
+        ];
+        this.showGuide(steps, 'dqx_guide_seen_home', { force: !!force });
+    },
+
+    // 設定画面の「ガイドをもう一度見る」ボタンから呼ばれる。
+    // ガイドの対象要素はホーム画面にしかないため、まずホームへ戻してから表示する。
+    showHomeGuideForced: function() {
+        this.goHome();
+        setTimeout(() => this.maybeShowHomeGuide(true), 50);
     },
 
     destroy: function() {
